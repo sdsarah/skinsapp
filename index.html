@@ -116,6 +116,23 @@
     </table>
   </div>
 
+  <div id="live-summary">
+    <h3>Live Summary</h3>
+    <label for="summary-week">Week:</label>
+    <input type="number" id="summary-week" min="1" value="1">
+    <table>
+      <thead>
+        <tr>
+          <th>Hole</th>
+          <th>Birdies</th>
+          <th>Chip-ins</th>
+          <th>Aces</th>
+        </tr>
+      </thead>
+      <tbody id="summary-body"></tbody>
+    </table>
+  </div>
+
   <script type="module">
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
@@ -123,14 +140,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const players = [
-      "Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater",
-      "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez",
-      "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth",
-      "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato",
-      "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight",
-      "Sean Edwards", "Steve Bonner", "Steve Jess"
-    ];
+    const players = ["Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
 
     const playerSelect = document.getElementById('player');
     players.forEach(name => {
@@ -176,16 +186,7 @@
         return;
       }
 
-      const submission = {
-        player,
-        week_number: weekNumber,
-        hole: currentHole,
-        score,
-        ctp
-      };
-
-      console.log('Submitting to Supabase:', submission);
-
+      const submission = { player, week_number: weekNumber, hole: currentHole, score, ctp };
       const { data, error } = await supabase.from('Submissions').insert([submission]);
 
       const messageEl = document.getElementById('result-message');
@@ -200,6 +201,39 @@
       messageEl.textContent = `✅ Hole ${currentHole} submitted!`;
       messageEl.style.color = 'green';
       updateUIAfterSubmit();
+      loadLiveSummary(weekNumber);
+    });
+
+    async function loadLiveSummary(week) {
+      const { data, error } = await supabase.from('Submissions').select('hole, score').eq('week_number', week);
+      if (error) {
+        console.error('Summary fetch error:', error);
+        return;
+      }
+      const summary = Array.from({ length: 9 }, (_, i) => ({ hole: i + 1, birdies: 0, chipins: 0, aces: 0 }));
+      for (const row of data) {
+        const h = row.hole - 1;
+        if (row.score === '2') summary[h].birdies++;
+        else if (row.score === '2*') summary[h].chipins++;
+        else if (row.score === '1') summary[h].aces++;
+      }
+      const tbody = document.getElementById('summary-body');
+      tbody.innerHTML = '';
+      summary.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.hole}</td><td>${r.birdies}</td><td>${r.chipins}</td><td>${r.aces}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('summary-week').addEventListener('input', (e) => {
+      const week = parseInt(e.target.value, 10);
+      if (week > 0) loadLiveSummary(week);
+    });
+
+    window.addEventListener('load', () => {
+      const defaultWeek = parseInt(document.getElementById('summary-week').value, 10);
+      if (defaultWeek > 0) loadLiveSummary(defaultWeek);
     });
   </script>
 </body>
