@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Palacio Skins Scorecard</title>
+  <script type="module" src="app.js" defer></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+      max-width: 700px;
+    }
+
+    h1, h2, h3 {
+      margin-bottom: 0.5rem;
+    }
+
+    form {
+      background: #f9f9f9;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      margin-top: 0.75rem;
+    }
+
+    select, input[type="number"] {
+      margin-top: 0.3rem;
+      padding: 0.4rem;
+      width: 100%;
+      max-width: 200px;
+    }
+
+    input[type="radio"], input[type="checkbox"] {
+      margin-right: 0.4rem;
+    }
+
+    button {
+      margin-top: 1rem;
+      padding: 0.6rem 1.2rem;
+      border: none;
+      background: #0366d6;
+      color: white;
+      font-weight: bold;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #024fa0;
+    }
+
+    #result-message {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+
+    #scorecard, #live-summary {
+      margin-top: 2rem;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 0.5rem;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.4rem;
+      text-align: center;
+    }
+
+    th {
+      background: #eee;
+    }
+  </style>
+</head>
+<body>
+  <h1>Palacio Skins Scorecard</h1>
+
+  <form id="score-form">
+    <label for="player">Player:</label>
+    <select id="player" name="player" required>
+      <option value="">Select player</option>
+    </select>
+
+    <label for="week-number">Week Number:</label>
+    <input type="number" id="week-number" name="week_number" required min="1">
+
+    <h3 id="hole-label">Hole 1</h3>
+    <div id="score-options">
+      <label><input type="radio" name="score" value="1" required> Hole-in-One</label><br>
+      <label><input type="radio" name="score" value="2"> Birdie</label><br>
+      <label><input type="radio" name="score" value="2*"> Chip-in Birdie</label><br>
+      <label><input type="radio" name="score" value="3+"> Par or Worse</label><br>
+    </div>
+
+    <div id="ctp-container" style="display: none;">
+      <label><input type="checkbox" id="ctp" name="ctp"> Closest to Pin (CTP)</label>
+    </div>
+
+    <button type="submit">Submit Hole</button>
+  </form>
+
+  <div id="result-message"></div>
+
+  <div id="scorecard">
+    <h3>Player Scorecard</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Hole</th>
+          <td colspan="9" id="holes-row">1</td>
+        </tr>
+        <tr>
+          <th>Score</th>
+          <td colspan="9" id="scores-row">-</td>
+        </tr>
+      </thead>
+    </table>
+  </div>
+
+  <hr>
+
+  <div id="live-summary">
+    <h2>Live Summary</h2>
+    <label for="summary-week">Select Week:</label>
+    <input type="number" id="summary-week" min="1" value="1">
+    <table id="summary-table" style="margin-top: 10px; border-collapse: collapse;">
+      <thead>
+        <tr>
+          <th>Hole</th>
+          <th>Birdies</th>
+          <th>Chip-ins</th>
+          <th>Hole-in-Ones</th>
+        </tr>
+      </thead>
+      <tbody id="summary-body">
+      </tbody>
+    </table>
+  </div>
+
+  <hr>
+
+  <div id="admin-panel" style="display: none;">
+    <h2>Admin Tools</h2>
+    <label for="admin-week">Week to Admin:</label>
+    <input type="number" id="admin-week" min="1" value="1">
+    <div style="margin-top: 1rem;">
+      <button id="calc-payouts">💰 Calculate Payouts</button>
+      <button id="clear-week">🗑️ Clear All Submissions</button>
+    </div>
+    <div id="admin-output" style="margin-top: 1rem;"></div>
+  </div>
+</body>
+</html>

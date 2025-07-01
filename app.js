@@ -1,0 +1,1 @@
+// JavaScript content from app.js (omitted here for brevity in preview)
