@@ -45,10 +45,14 @@
     }
     th, td {
       border: 1px solid #ccc;
-      padding: 0.4rem;
+      padding: 0.6rem;
       text-align: center;
     }
     th { background: #eee; }
+    .scorecard-row th {
+      background: #f0f0f0;
+      width: 80px;
+    }
   </style>
 </head>
 <body>
@@ -83,16 +87,32 @@
   <div id="scorecard">
     <h3>Player Scorecard</h3>
     <table>
-      <thead>
-        <tr>
+      <tbody>
+        <tr class="scorecard-row">
           <th>Hole</th>
-          <td colspan="9" id="holes-row">1</td>
+          <td id="hole-1">1</td>
+          <td id="hole-2">2</td>
+          <td id="hole-3">3</td>
+          <td id="hole-4">4</td>
+          <td id="hole-5">5</td>
+          <td id="hole-6">6</td>
+          <td id="hole-7">7</td>
+          <td id="hole-8">8</td>
+          <td id="hole-9">9</td>
         </tr>
-        <tr>
+        <tr class="scorecard-row">
           <th>Score</th>
-          <td colspan="9" id="scores-row">-</td>
+          <td id="score-1">-</td>
+          <td id="score-2">-</td>
+          <td id="score-3">-</td>
+          <td id="score-4">-</td>
+          <td id="score-5">-</td>
+          <td id="score-6">-</td>
+          <td id="score-7">-</td>
+          <td id="score-8">-</td>
+          <td id="score-9">-</td>
         </tr>
-      </thead>
+      </tbody>
     </table>
   </div>
 
@@ -117,16 +137,15 @@
     let currentHole = 1;
     const scorecard = Array(9).fill('-');
 
-    document.getElementById('holes-row').innerHTML = Array.from({ length: 9 }, (_, i) => `<td>${i + 1}</td>`).join('');
-    document.getElementById('scores-row').innerHTML = scorecard.map(s => `<td>${s}</td>`).join('');
-
     function updateUIAfterSubmit() {
       currentHole++;
       document.getElementById('hole-label').textContent = `Hole ${currentHole}`;
       document.querySelectorAll('input[name="score"]').forEach(input => input.checked = false);
       document.getElementById('ctp').checked = false;
       document.getElementById('ctp-container').style.display = currentHole === 9 ? 'block' : 'none';
-      document.getElementById('scores-row').innerHTML = scorecard.map(s => `<td>${s}</td>`).join('');
+      scorecard.forEach((s, i) => {
+        document.getElementById(`score-${i + 1}`).textContent = s;
+      });
       if (currentHole > 9) {
         document.getElementById('score-form').style.display = 'none';
         const restartBtn = document.createElement('button');
