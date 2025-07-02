@@ -19,13 +19,7 @@ th, td { border: 1px solid #ccc; padding: 0.4rem; text-align: center; }
 .admin { background: #f9f9f9; padding: 1rem; margin-top: 1rem; border: 1px solid #ccc; }
 #recap:empty { display: none; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">document.getElementById('showRecap').addEventListener('click', () => {
-  const recap = document.getElementById('recap');
-  recap.style.display = 'block';
-  document.getElementById('showRecap').style.display = 'none';
-});
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <h1>Palacio Skins Scorecard</h1>
@@ -79,29 +73,9 @@ th, td { border: 1px solid #ccc; padding: 0.4rem; text-align: center; }
 
 <div id="summary"></div>
 <div id="adminTools" class="admin hidden"></div>
-<button id="showRecap" style="margin-top:1rem; display:none">View Final Results</button>
-<pre id="recap" style="display:none; margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
+<pre id="recap" style="margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
 
 <script>
-// Restore player/week from localStorage
-const storedPlayer = localStorage.getItem('player');
-const storedWeek = localStorage.getItem('week');
-if (storedPlayer) document.getElementById('player').value = storedPlayer;
-if (storedWeek) document.getElementById('week').value = storedWeek;
-
-// Re-run admin check in case restored player is Commish or Craig
-const restoredPlayer = document.getElementById('player').value;
-if (["Commish", "Craig Sanger"].includes(restoredPlayer)) {
-  const week = document.getElementById('week').value || 1;
-  adminPanel.classList.remove("hidden");
-  adminPanel.innerHTML = `
-    <h3>Admin Tools</h3>
-    <label>Week to Finalize: <input type="number" id="finalWeek" min="1" value="${week}" /></label>
-    <button onclick="finalizeScores()">💰 Finalize Scores & Calculate Payouts</button>
-    <button onclick="clearWeek()">🗑 Clear Week</button>
-    <pre id="adminResults">Admin Results will appear here.</pre>
-  `;
-}
 const SUPABASE_URL = 'https://htsipaxeqaumxntsrsvx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88';
 const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -164,39 +138,66 @@ if (input.value !== '2') input.addEventListener('change', () => document.getElem
 }
 
 async function handleHoleSubmit() {
-  const player = document.getElementById('player').value === 'Other'
-    ? document.getElementById('otherPlayer').value.trim()
-    : document.getElementById('player').value;
-  const week = parseInt(document.getElementById('week').value);
-  const scoreInput = holeSection.querySelector('input[name="score"]:checked');
-  if (!player || !week || !scoreInput) return alert('Fill in all fields');
+const player = document.getElementById('player').value === 'Other'
+? document.getElementById('otherPlayer').value.trim()
+: document.getElementById('player').value;
+const week = parseInt(document.getElementById('week').value);
+const scoreInput = holeSection.querySelector('input[name="score"]:checked');
+if (!player || !week || !scoreInput) return alert('Fill in all fields');
 
-  let score = scoreInput.value;
-  const chipIn = document.getElementById('chipIn')?.checked;
-  if (score === '2' && chipIn) score = '2*';
-  const ctp = document.getElementById('ctp')?.checked || false;
+let score = scoreInput.value;
+const chipIn = document.getElementById('chipIn')?.checked;
+if (score === '2' && chipIn) score = '2*';
+const ctp = document.getElementById('ctp')?.checked || false;
 
-  const submission = { player, week_number: week, hole: currentHole, score, ctp };
+const submission = { player, week_number: week, hole: currentHole, score, ctp };
 
-  try {
-    const { error } = await client.from('Submissions').insert([submission]);
-    if (error) throw error;
-  } catch (err) {
-    alert('Error submitting: ' + err.message);
-    return;
-  }
+try {
+const { error } = await client.from('Submissions').insert([submission]);
+if (error) throw error;
+} catch (err) {
+alert('Error submitting: ' + err.message);
+return;
+}
 
-  scores[currentHole] = score;
-  renderScorecard();
-  currentHole++;
+scores[currentHole] = score;
+renderScorecard();
+currentHole++;
 
-  renderLiveSummary();
-  renderHoleForm();
+renderLiveSummary();
 
-  
-const parsedWeek = parseInt(week);
-listenToRecap(parsedWeek);
-listenToLiveScores(parsedWeek);
+function listenToRecap(weekNumber) {
+      client.channel('public:Recaps')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'Recaps',
+          filter: `week_number=eq.${weekNumber}`
+        }, payload => {
+          document.getElementById('recap').textContent = payload.new.recap_text;
+        })
+        .subscribe();
+  client
+    .from('Recaps')
+    .select('recap_text')
+    .eq('week_number', weekNumber)
+    .single()
+    .then(({ data }) => {
+      if (data && data.recap_text) {
+        document.getElementById('recap').textContent = data.recap_text;
+      }
+    });
+
+  client.channel('public:Recaps')
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'Recaps',
+      filter: `week_number=eq.${weekNumber}`
+    }, payload => {
+      document.getElementById('recap').textContent = payload.new.recap_text;
+    })
+    .subscribe();
 }
 
 function listenToLiveScores(weekNumber) {
@@ -208,14 +209,18 @@ client.channel('public:Submissions')
 )
 .subscribe();
 }
+renderHoleForm();
+const parsedWeek = parseInt(week);
+      listenToRecap(parsedWeek);
 
+listenToLiveScores(parsedWeek);
 
+}
+
+renderHoleForm();
 
 
 startRoundButton.addEventListener('click', () => {
-  // store player + week so we can restore it after refresh
-  localStorage.setItem('player', document.getElementById('player').value);
-  localStorage.setItem('week', document.getElementById('week').value);
 const player = document.getElementById('player').value;
 const week = document.getElementById('week').value;
 if (!player || !week) return alert('Please select a player and enter a week number first.');
@@ -258,8 +263,6 @@ html += `<tr><td>${i}</td><td>${h.birdies}</td><td>${h.chipins}</td><td>${h.aces
 }
 html += '</table>';
 summary.innerHTML = html;
-  fetchAndOverlayRecap(week);
-
 });
 }
 
@@ -367,7 +370,6 @@ recap += `
 
 document.getElementById('adminResults').textContent = recap;
 await client.from('Recaps').upsert({ week_number: week, recap_text: recap });
-fetchAndOverlayRecap(week);
 }
 
 async function clearWeek() {
@@ -384,68 +386,6 @@ document.getElementById('adminResults').textContent = 'Error clearing week.';
 document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
 }
 }
-function fetchAndOverlayRecap(weekNumber) {
-  client.channel('public:Recaps')
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'Recaps',
-      filter: `week_number=eq.${weekNumber}`
-    }, payload => {
-      document.getElementById('recap').textContent = payload.new.recap_text;
-      document.getElementById('showRecap').style.display = 'block';
-      // Removed recursive call to prevent infinite loop
-      renderLiveSummary();
-    })
-    .subscribe();
-
-  client
-    .from('Recaps')
-    .select('recap_text')
-    .eq('week_number', weekNumber)
-    .single()
-    .then(({ data }) => {
-      if (!data || !data.recap_text) return;
-      document.getElementById('recap').textContent = data.recap_text;
-      document.getElementById('showRecap').style.display = 'block';
-
-      const recapLines = data.recap_text.split('\n');
-      const skinMap = {};
-      let ctpWinner = '';
-
-      for (const line of recapLines) {
-        const skinMatch = line.match(/^Hole (\d+): (Skin.*?)$/);
-        const ctpMatch = line.match(/CTP Winner: (.*?) \(/);
-        if (skinMatch) {
-          const hole = parseInt(skinMatch[1]);
-          skinMap[hole] = skinMatch[2];
-        }
-        if (ctpMatch) {
-          ctpWinner = ctpMatch[1];
-        }
-      }
-
-      const summaryTable = document.querySelector('#summary table');
-      if (!summaryTable) return;
-
-      const alreadyAppended = summaryTable.querySelector('th.skin');
-      if (alreadyAppended) return;
-
-      summaryTable.rows[0].innerHTML += '<th class="skin">Skin</th>';
-
-      for (let i = 1; i <= 9; i++) {
-        const row = summaryTable.rows[i];
-        const cell = document.createElement('td');
-        cell.textContent = skinMap[i] || '-';
-        row.appendChild(cell);
-      }
-
-      const ctpRow = document.createElement('tr');
-      ctpRow.innerHTML = '<td colspan="5"><strong>📍 CTP Winner:</strong> ' + (ctpWinner || '–') + '</td>';
-      summaryTable.appendChild(ctpRow);
-    });
-}
-
 
 </script>
 </body>
