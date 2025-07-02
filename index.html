@@ -397,7 +397,7 @@ function fetchAndOverlayRecap(weekNumber) {
       document.getElementById('recap').textContent = payload.new.recap_text;
       document.getElementById('showRecap').style.display = 'block';
       // Removed recursive call to prevent infinite loop
-      fetchAndOverlayRecap(weekNumber);
+      // Removed recursive call to prevent infinite loop
     })
     .subscribe();
 
