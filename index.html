@@ -208,6 +208,72 @@ document.getElementById('clear-week').onclick = async () => {
   const { error } = await supabase.from('Submissions').delete().eq('week_number', week);
   document.getElementById('admin-results').textContent = error ? '❌ ' + error.message : `✅ Week ${week} cleared.`;
 };
+document.getElementById('calculate-payouts').onclick = async () => {
+  const week = +document.getElementById('admin-week').value;
+  const { data, error } = await supabase.from('Submissions').select('*').eq('week_number', week);
+  const out = document.getElementById('admin-results');
+  if (error) return out.textContent = '❌ ' + error.message;
+
+  const byHole = {}, shareMap = {}, aces = [], ctps = [];
+  let totalShares = 0;
+
+  data.forEach(r => {
+    if (!byHole[r.hole]) byHole[r.hole] = [];
+    byHole[r.hole].push(r);
+    if (r.score === '1') aces.push(r);
+    if (r.ctp) ctps.push(r);
+  });
+
+  let res = '';
+  if (aces.length) {
+    const winners = [...new Set(aces.map(r => r.player))];
+    const prize = (300 / winners.length).toFixed(2);
+    res += `🎯 Hole-in-One Winner(s):\n` + winners.map(p => `- ${p}: $${prize}`).join('\n');
+  } else {
+    for (const hole in byHole) {
+      const scores = byHole[hole];
+      const birdies = scores.filter(r => r.score === '2');
+      const chipins = scores.filter(r => r.score === '2*');
+      if (birdies.length === 1 && chipins.length === 0) {
+        const p = birdies[0].player;
+        shareMap[p] = (shareMap[p] || 0) + 1;
+        totalShares++;
+      }
+      if (chipins.length === 1 && birdies.length === 0) {
+        const p = chipins[0].player;
+        shareMap[p] = (shareMap[p] || 0) + 2;
+        totalShares += 2;
+      }
+    }
+    res += `\n💸 Skin Results:\n`;
+    if (!totalShares) {
+      res += `- No skins awarded.`;
+    } else {
+      for (const [p, s] of Object.entries(shareMap)) {
+        const amt = ((300 * s) / totalShares).toFixed(2);
+        res += `- ${p}: $${amt} (${s} share${s > 1 ? 's' : ''})\n`;
+      }
+    }
+  }
+
+  const recap = [];
+  const allHoles = Array.from({ length: 9 }, (_, i) => i + 1);
+  allHoles.forEach(hole => {
+    const scores = byHole[hole] || [];
+    const b = scores.filter(r => r.score === '2').length;
+    const c = scores.filter(r => r.score === '2*').length;
+    const a = scores.filter(r => r.score === '1').length;
+    recap.push(`Hole ${hole}: ${b ? `${b} birdie${b > 1 ? 's' : ''}` : 'no birdies'}, ${c ? `${c} chip-in${c > 1 ? 's' : ''}` : 'no chip-ins'}, ${a ? `${a} ace${a > 1 ? 's' : ''}` : 'no aces'}`);
+  });
+
+  const ctpList = ctps.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r => r.player);
+  const ctpWinner = ctpList.at(-1) || 'Commish';
+  res += `\n\n🏁 Full Recap:\n` + recap.join('\n');
+  res += `\n\n🎯 CTP Sequence: ${ctpList.join(' → ')}`;
+  res += `\n🎯 Final CTP Winner: ${ctpWinner} ($30)`;
+
+  out.textContent = res;
+};
 </script>
 
 </body>
