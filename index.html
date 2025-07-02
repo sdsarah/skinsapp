@@ -8,9 +8,8 @@
     body {
       font-family: system-ui, sans-serif;
       margin: 2rem auto;
-      padding: 0 1rem;
       max-width: 720px;
-      background: #fff;
+      padding: 0 1rem;
     }
     h1, h3 {
       font-weight: 600;
@@ -114,7 +113,6 @@
   <input type="number" id="admin-week" value="1" min="1" />
   <button id="calculate-payouts">💰 Finalize Scores & Calculate Payouts</button>
   <button id="clear-week" style="background:#e00;">🗑 Clear Week</button>
-  <button id="email-results">✉️ Email Results to Craig</button>
   <pre id="admin-results"></pre>
 </div>
 
@@ -127,7 +125,7 @@ const supabase = createClient(
 );
 
 const playerSelect = document.getElementById('player');
-const players = [/* ... full player list ... */ "Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
+const players = ["Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
 players.forEach(name => {
   const option = document.createElement('option');
   option.value = name;
@@ -197,15 +195,16 @@ document.getElementById('calculate-payouts').onclick = async () => {
     res += `🎯 Hole-in-One Winner(s):\n` + winners.map(p => `- ${p}: $${prize}`).join('\n');
   } else {
     for (const hole in byHole) {
-      const b = byHole[hole].filter(r => r.score === '2');
-      const c = byHole[hole].filter(r => r.score === '2*');
-      if (b.length === 1 && c.length === 0) {
-        const p = b[0].player;
+      const scores = byHole[hole];
+      const birdies = scores.filter(r => r.score === '2');
+      const chipins = scores.filter(r => r.score === '2*');
+      if (birdies.length === 1 && chipins.length === 0) {
+        const p = birdies[0].player;
         shareMap[p] = (shareMap[p] || 0) + 1;
         totalShares++;
       }
-      if (c.length === 1 && b.length === 0) {
-        const p = c[0].player;
+      if (chipins.length === 1 && birdies.length === 0) {
+        const p = chipins[0].player;
         shareMap[p] = (shareMap[p] || 0) + 2;
         totalShares += 2;
       }
@@ -221,8 +220,22 @@ document.getElementById('calculate-payouts').onclick = async () => {
     }
   }
 
-  const ctpWinner = ctps.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0]?.player || 'Commish';
-  res += `\n🎯 CTP Winner: ${ctpWinner} ($30)`;
+  const recap = [];
+  const allHoles = Array.from({ length: 9 }, (_, i) => i + 1);
+  allHoles.forEach(hole => {
+    const scores = byHole[hole] || [];
+    const b = scores.filter(r => r.score === '2').length;
+    const c = scores.filter(r => r.score === '2*').length;
+    const a = scores.filter(r => r.score === '1').length;
+    recap.push(`Hole ${hole}: ${b ? `${b} birdie${b > 1 ? 's' : ''}` : 'no birdies'}, ${c ? `${c} chip-in${c > 1 ? 's' : ''}` : 'no chip-ins'}, ${a ? `${a} ace${a > 1 ? 's' : ''}` : 'no aces'}`);
+  });
+
+  const ctpList = ctps.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r => r.player);
+  const ctpWinner = ctpList.at(-1) || 'Commish';
+  res += `\n\n🏁 Full Recap:\n` + recap.join('\n');
+  res += `\n\n🎯 CTP Sequence: ${ctpList.join(' → ')}`;
+  res += `\n🎯 Final CTP Winner: ${ctpWinner} ($30)`;
+
   out.textContent = res;
 };
 
@@ -232,24 +245,6 @@ document.getElementById('clear-week').onclick = async () => {
   const { error } = await supabase.from('Submissions').delete().eq('week_number', week);
   document.getElementById('admin-results').textContent = error ? '❌ ' + error.message : `✅ Week ${week} cleared.`;
 };
-
-document.getElementById('email-results').onclick = () => {
-  const output = document.getElementById('admin-results').textContent.trim();
-  if (!output) return alert('Please calculate payouts first.');
-  const subject = encodeURIComponent('Palacio Skins Results');
-  const body = encodeURIComponent(output);
-  const mailto = `mailto:craig.m.sanger@gmail.com?subject=${subject}&body=${body}`;
-  window.open(mailto);
-};
-
-document.getElementById('email-results').addEventListener('contextmenu', (e) => {
-  e.preventDefault();
-  const output = document.getElementById('admin-results').textContent.trim();
-  if (!output) return alert('Please calculate payouts first.');
-  navigator.clipboard.writeText(output).then(() => {
-    alert('Results copied to clipboard!');
-  });
-});
 </script>
 
 </body>
