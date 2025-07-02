@@ -116,21 +116,12 @@
     </table>
   </div>
 
-  <div id="live-summary">
-    <h3>Live Summary</h3>
-    <label for="summary-week">Week:</label>
-    <input type="number" id="summary-week" min="1" value="1">
-    <table>
-      <thead>
-        <tr>
-          <th>Hole</th>
-          <th>Birdies</th>
-          <th>Chip-ins</th>
-          <th>Aces</th>
-        </tr>
-      </thead>
-      <tbody id="summary-body"></tbody>
-    </table>
+  <div id="admin-tools" style="display:none; margin-top: 2rem;">
+    <h3>Admin Tools</h3>
+    <label for="admin-week">Week to Finalize:</label>
+    <input type="number" id="admin-week" min="1" value="1">
+    <button id="calculate-payouts">💰 Finalize Scores & Calculate Payouts</button>
+    <pre id="admin-results" style="white-space: pre-wrap; background: #f0f0f0; padding: 1rem; border: 1px solid #ccc; margin-top: 1rem;"></pre>
   </div>
 
   <script type="module">
@@ -201,39 +192,85 @@
       messageEl.textContent = `✅ Hole ${currentHole} submitted!`;
       messageEl.style.color = 'green';
       updateUIAfterSubmit();
-      loadLiveSummary(weekNumber);
     });
 
-    async function loadLiveSummary(week) {
-      const { data, error } = await supabase.from('Submissions').select('hole, score').eq('week_number', week);
+    playerSelect.addEventListener('change', () => {
+      const name = playerSelect.value;
+      const isAdmin = name === 'Craig Sanger' || name === 'Commish';
+      document.getElementById('admin-tools').style.display = isAdmin ? 'block' : 'none';
+    });
+
+    async function calculatePayouts(week) {
+      const { data, error } = await supabase
+        .from('Submissions')
+        .select('*')
+        .eq('week_number', week);
+
+      const output = document.getElementById('admin-results');
       if (error) {
-        console.error('Summary fetch error:', error);
+        output.textContent = '❌ Error loading submissions: ' + error.message;
         return;
       }
-      const summary = Array.from({ length: 9 }, (_, i) => ({ hole: i + 1, birdies: 0, chipins: 0, aces: 0 }));
-      for (const row of data) {
-        const h = row.hole - 1;
-        if (row.score === '2') summary[h].birdies++;
-        else if (row.score === '2*') summary[h].chipins++;
-        else if (row.score === '1') summary[h].aces++;
-      }
-      const tbody = document.getElementById('summary-body');
-      tbody.innerHTML = '';
-      summary.forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.hole}</td><td>${r.birdies}</td><td>${r.chipins}</td><td>${r.aces}</td>`;
-        tbody.appendChild(tr);
+
+      const byHole = {};
+      const shareMap = {};
+      let totalShares = 0;
+      const aces = [];
+      const ctps = [];
+
+      data.forEach(row => {
+        if (!byHole[row.hole]) byHole[row.hole] = [];
+        byHole[row.hole].push(row);
+        if (row.score === '1') aces.push(row);
+        if (row.ctp) ctps.push(row);
       });
+
+      let results = '';
+
+      if (aces.length > 0) {
+        const aceWinners = [...new Set(aces.map(r => r.player))];
+        const split = (300 / aceWinners.length).toFixed(2);
+        results += `🎯 Hole-in-One winner(s):\n` + aceWinners.map(p => `- ${p}: $${split}`).join('\n') + '\n';
+      } else {
+        for (const hole in byHole) {
+          const entries = byHole[hole];
+          const birdies = entries.filter(r => r.score === '2');
+          const chipins = entries.filter(r => r.score === '2*');
+
+          if (birdies.length === 1 && chipins.length === 0) {
+            const p = birdies[0].player;
+            shareMap[p] = (shareMap[p] || 0) + 1;
+            totalShares++;
+          }
+
+          if (chipins.length === 1 && birdies.length === 0) {
+            const p = chipins[0].player;
+            shareMap[p] = (shareMap[p] || 0) + 2;
+            totalShares += 2;
+          }
+        }
+
+        results += `💸 Skin Results:\n`;
+        if (totalShares === 0) {
+          results += `- No skins were earned this week.\n`;
+        } else {
+          for (const [player, shares] of Object.entries(shareMap)) {
+            const payout = ((300 * shares) / totalShares).toFixed(2);
+            results += `- ${player}: $${payout} (${shares} share${shares > 1 ? 's' : ''})\n`;
+          }
+        }
+      }
+
+      ctps.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const ctpWinner = ctps.length ? ctps[0].player : 'Commish';
+      results += `\n🎯 CTP Winner: ${ctpWinner} ($30)`;
+
+      output.textContent = results;
     }
 
-    document.getElementById('summary-week').addEventListener('input', (e) => {
-      const week = parseInt(e.target.value, 10);
-      if (week > 0) loadLiveSummary(week);
-    });
-
-    window.addEventListener('load', () => {
-      const defaultWeek = parseInt(document.getElementById('summary-week').value, 10);
-      if (defaultWeek > 0) loadLiveSummary(defaultWeek);
+    document.getElementById('calculate-payouts').addEventListener('click', () => {
+      const week = parseInt(document.getElementById('admin-week').value, 10);
+      if (week > 0) calculatePayouts(week);
     });
   </script>
 </body>
