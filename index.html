@@ -376,6 +376,40 @@ async function clearWeek() {
     document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
   }
 }
+function fetchAndOverlayRecap(weekNumber) {
+  client
+    .from('Recaps')
+    .select('recap_text')
+    .eq('week_number', weekNumber)
+    .single()
+    .then(({ data }) => {
+      if (!data || !data.recap_text) return;
+
+      const recapLines = data.recap_text.split('\n');
+      const skinMap = {};
+      let ctpWinner = '';
+
+      for (const line of recapLines) {
+        const skinMatch = line.match(/^Hole (\d+): (Skin.*?)$/);
+        const ctpMatch = line.match(/CTP Winner: (.*?) \(/);
+        if (skinMatch) {
+          const hole = parseInt(skinMatch[1]);
+          skinMap[hole] = skinMatch[2];
+        }
+        if (ctpMatch) {
+          ctpWinner = ctpMatch[1];
+        }
+      }
+
+      const summaryTable = document.querySelector('#summary table');
+      if (!summaryTable) return;
+
+      const alreadyAppended = summaryTable.querySelector('th.skin');
+      if (alreadyAppended) return;
+
+      summaryTable.rows[0].innerHTML += '<th class="skin">Skin</th>';
+
+      for (let i = 1; i <=
 
   </script>
 </body>
