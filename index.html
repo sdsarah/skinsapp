@@ -70,8 +70,8 @@
     <div id="holeSection"></div>
   </form>
 
-  <div id="summary"></div>
-  <div id="adminTools" class="admin hidden"></div>
+  <div id="summary">
+<pre id="recap" style="margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
 
   <script>
     const SUPABASE_URL = 'https://htsipaxeqaumxntsrsvx.supabase.co';
@@ -163,6 +163,18 @@ function renderHoleForm() {
   currentHole++;
 
   renderLiveSummary();
+    function listenToRecap(weekNumber) {
+      client.channel('public:Recaps')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'Recaps',
+          filter: `week_number=eq.${weekNumber}`
+        }, payload => {
+          document.getElementById('recap').textContent = payload.new.recap_text;
+        })
+        .subscribe();
+    }
 
     function listenToLiveScores(weekNumber) {
       client.channel('public:Submissions')
@@ -174,7 +186,9 @@ function renderHoleForm() {
         .subscribe();
     }
   renderHoleForm();
-      listenToLiveScores(parseInt(week));
+      const parsedWeek = parseInt(week);
+      listenToLiveScores(parsedWeek);
+      listenToRecap(parsedWeek);
 }
 
     renderHoleForm();
@@ -328,6 +342,7 @@ async function finalizeScores() {
   }
 
   document.getElementById('adminResults').textContent = recap;
+  await client.from('Recaps').upsert({ week_number: week, recap_text: recap });
 }
 
 async function clearWeek() {
