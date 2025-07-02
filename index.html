@@ -138,66 +138,39 @@ if (input.value !== '2') input.addEventListener('change', () => document.getElem
 }
 
 async function handleHoleSubmit() {
-const player = document.getElementById('player').value === 'Other'
-? document.getElementById('otherPlayer').value.trim()
-: document.getElementById('player').value;
-const week = parseInt(document.getElementById('week').value);
-const scoreInput = holeSection.querySelector('input[name="score"]:checked');
-if (!player || !week || !scoreInput) return alert('Fill in all fields');
+  const player = document.getElementById('player').value === 'Other'
+    ? document.getElementById('otherPlayer').value.trim()
+    : document.getElementById('player').value;
+  const week = parseInt(document.getElementById('week').value);
+  const scoreInput = holeSection.querySelector('input[name="score"]:checked');
+  if (!player || !week || !scoreInput) return alert('Fill in all fields');
 
-let score = scoreInput.value;
-const chipIn = document.getElementById('chipIn')?.checked;
-if (score === '2' && chipIn) score = '2*';
-const ctp = document.getElementById('ctp')?.checked || false;
+  let score = scoreInput.value;
+  const chipIn = document.getElementById('chipIn')?.checked;
+  if (score === '2' && chipIn) score = '2*';
+  const ctp = document.getElementById('ctp')?.checked || false;
 
-const submission = { player, week_number: week, hole: currentHole, score, ctp };
+  const submission = { player, week_number: week, hole: currentHole, score, ctp };
 
-try {
-const { error } = await client.from('Submissions').insert([submission]);
-if (error) throw error;
-} catch (err) {
-alert('Error submitting: ' + err.message);
-return;
-}
+  try {
+    const { error } = await client.from('Submissions').insert([submission]);
+    if (error) throw error;
+  } catch (err) {
+    alert('Error submitting: ' + err.message);
+    return;
+  }
 
-scores[currentHole] = score;
-renderScorecard();
-currentHole++;
+  scores[currentHole] = score;
+  renderScorecard();
+  currentHole++;
 
-renderLiveSummary();
+  renderLiveSummary();
+  renderHoleForm();
 
-function listenToRecap(weekNumber) {
-      client.channel('public:Recaps')
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'Recaps',
-          filter: `week_number=eq.${weekNumber}`
-        }, payload => {
-          document.getElementById('recap').textContent = payload.new.recap_text;
-        })
-        .subscribe();
-  client
-    .from('Recaps')
-    .select('recap_text')
-    .eq('week_number', weekNumber)
-    .single()
-    .then(({ data }) => {
-      if (data && data.recap_text) {
-        document.getElementById('recap').textContent = data.recap_text;
-      }
-    });
-
-  client.channel('public:Recaps')
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'Recaps',
-      filter: `week_number=eq.${weekNumber}`
-    }, payload => {
-      document.getElementById('recap').textContent = payload.new.recap_text;
-    })
-    .subscribe();
+  
+const parsedWeek = parseInt(week);
+listenToRecap(parsedWeek);
+listenToLiveScores(parsedWeek);
 }
 
 function listenToLiveScores(weekNumber) {
@@ -209,15 +182,8 @@ client.channel('public:Submissions')
 )
 .subscribe();
 }
-renderHoleForm();
-const parsedWeek = parseInt(week);
-      listenToRecap(parsedWeek);
 
-listenToLiveScores(parsedWeek);
 
-}
-
-renderHoleForm();
 
 
 startRoundButton.addEventListener('click', () => {
@@ -263,6 +229,8 @@ html += `<tr><td>${i}</td><td>${h.birdies}</td><td>${h.chipins}</td><td>${h.aces
 }
 html += '</table>';
 summary.innerHTML = html;
+  fetchAndOverlayRecap(week);
+
 });
 }
 
@@ -385,6 +353,51 @@ document.getElementById('adminResults').textContent = 'Error clearing week.';
 } else {
 document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
 }
+}
+function fetchAndOverlayRecap(weekNumber) {
+  client
+    .from('Recaps')
+    .select('recap_text')
+    .eq('week_number', weekNumber)
+    .single()
+    .then(({ data }) => {
+      if (!data || !data.recap_text) return;
+
+      const recapLines = data.recap_text.split('\n');
+      const skinMap = {};
+      let ctpWinner = '';
+
+      for (const line of recapLines) {
+        const skinMatch = line.match(/^Hole (\d+): (Skin.*?)$/);
+        const ctpMatch = line.match(/CTP Winner: (.*?) \(/);
+        if (skinMatch) {
+          const hole = parseInt(skinMatch[1]);
+          skinMap[hole] = skinMatch[2];
+        }
+        if (ctpMatch) {
+          ctpWinner = ctpMatch[1];
+        }
+      }
+
+      const summaryTable = document.querySelector('#summary table');
+      if (!summaryTable) return;
+
+      const alreadyAppended = summaryTable.querySelector('th.skin');
+      if (alreadyAppended) return;
+
+      summaryTable.rows[0].innerHTML += '<th class="skin">Skin</th>';
+
+      for (let i = 1; i <= 9; i++) {
+        const row = summaryTable.rows[i];
+        const cell = document.createElement('td');
+        cell.textContent = skinMap[i] || '-';
+        row.appendChild(cell);
+      }
+
+      const ctpRow = document.createElement('tr');
+      ctpRow.innerHTML = '<td colspan="5"><strong>📍 CTP Winner:</strong> ' + (ctpWinner || '–') + '</td>';
+      summaryTable.appendChild(ctpRow);
+    });
 }
 
 </script>
