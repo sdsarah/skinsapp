@@ -354,7 +354,6 @@ recap += `
 document.getElementById('adminResults').textContent = recap;
 await client.from('Recaps').upsert({ week_number: week, recap_text: recap });
 fetchAndOverlayRecap(week);
-renderLiveSummary();
 }
 
 async function clearWeek() {
