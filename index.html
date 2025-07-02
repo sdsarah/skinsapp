@@ -88,6 +88,20 @@ const storedPlayer = localStorage.getItem('player');
 const storedWeek = localStorage.getItem('week');
 if (storedPlayer) document.getElementById('player').value = storedPlayer;
 if (storedWeek) document.getElementById('week').value = storedWeek;
+
+// Re-run admin check in case restored player is Commish or Craig
+const restoredPlayer = document.getElementById('player').value;
+if (["Commish", "Craig Sanger"].includes(restoredPlayer)) {
+  const week = document.getElementById('week').value || 1;
+  adminPanel.classList.remove("hidden");
+  adminPanel.innerHTML = `
+    <h3>Admin Tools</h3>
+    <label>Week to Finalize: <input type="number" id="finalWeek" min="1" value="${week}" /></label>
+    <button onclick="finalizeScores()">💰 Finalize Scores & Calculate Payouts</button>
+    <button onclick="clearWeek()">🗑 Clear Week</button>
+    <pre id="adminResults">Admin Results will appear here.</pre>
+  `;
+}
 const SUPABASE_URL = 'https://htsipaxeqaumxntsrsvx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88';
 const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
