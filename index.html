@@ -380,7 +380,7 @@ function fetchAndOverlayRecap(weekNumber) {
     }, payload => {
       document.getElementById('recap').textContent = payload.new.recap_text;
       document.getElementById('showRecap').style.display = 'block';
-      fetchAndOverlayRecap(weekNumber);
+      // Removed recursive call to prevent infinite loop
       renderLiveSummary();
     })
     .subscribe();
