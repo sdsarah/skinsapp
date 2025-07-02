@@ -163,7 +163,18 @@ function renderHoleForm() {
   currentHole++;
 
   renderLiveSummary();
+
+    function listenToLiveScores(weekNumber) {
+      client.channel('public:Submissions')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` },
+          () => renderLiveSummary()
+        )
+        .subscribe();
+    }
   renderHoleForm();
+      listenToLiveScores(parseInt(week));
 }
 
     renderHoleForm();
@@ -219,7 +230,8 @@ function renderHoleForm() {
     
     document.getElementById('player').addEventListener('change', () => {
   const player = document.getElementById('player').value;
-  const week = document.getElementById('week').value;
+  const weekInput = document.getElementById('week');
+  const week = weekInput.value || 1;
   if (["Commish", "Craig Sanger"].includes(player)) {
     adminPanel.classList.remove("hidden");
     adminPanel.innerHTML = `
