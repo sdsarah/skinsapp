@@ -136,18 +136,18 @@ document.addEventListener('DOMContentLoaded', () => {
     option.textContent = name;
     playerSelect.appendChild(option);
   });
+
+  playerSelect.addEventListener('change', () => {
+    const isAdmin = ["Craig Sanger", "Commish"].includes(playerSelect.value);
+    document.getElementById('admin-tools').style.display = isAdmin ? 'block' : 'none';
+    const week = +document.getElementById('week-number').value;
+    if (isAdmin && week) document.getElementById('admin-week').value = week;
+  });
+
 });
-  
 
 let currentHole = 1;
 const scorecard = Array(9).fill('-');
-
-playerSelect.addEventListener('change', () => {
-  const isAdmin = ["Craig Sanger", "Commish"].includes(playerSelect.value);
-  document.getElementById('admin-tools').style.display = isAdmin ? 'block' : 'none';
-  const week = +document.getElementById('week-number').value;
-  if (isAdmin && week) document.getElementById('admin-week').value = week;
-});
 
 async function loadLiveSummary(week) {
   const { data, error } = await supabase.from('Submissions').select('hole, score').eq('week_number', week);
@@ -174,6 +174,7 @@ async function loadLiveSummary(week) {
 
 document.getElementById('score-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const playerSelect = document.getElementById('player');
   const player = playerSelect.value;
   const week = +document.getElementById('week-number').value;
   const score = document.querySelector('input[name="score"]:checked')?.value;
@@ -231,8 +232,8 @@ document.getElementById('calculate-payouts').onclick = async () => {
   if (aces.length) {
     const winners = [...new Set(aces.map(r => r.player))];
     const prize = (300 / winners.length).toFixed(2);
-    res += `🎯 Hole-in-One Winner(s):
-` + winners.map(p => `- ${p}: $${prize}`).join('
+    res += '🎯 Hole-in-One Winner(s):
+' + winners.map(p => `- ${p}: $${prize}`).join('
 ');
   } else {
     for (const hole in byHole) {
@@ -250,9 +251,9 @@ document.getElementById('calculate-payouts').onclick = async () => {
         totalShares += 2;
       }
     }
-    res += `
+    res += '
 💸 Skin Results:
-`;
+';
     if (!totalShares) {
       res += `- No skins awarded.`;
     } else {
@@ -279,16 +280,16 @@ document.getElementById('calculate-payouts').onclick = async () => {
 
   const ctpList = ctps.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r => r.player);
   const ctpWinner = ctpList.at(-1) || 'Commish';
-  res += `
+  res += '
 
 🏁 Full Recap:
-` + recap.join('
+' + recap.join('
 ');
-  res += `
+  res += '
 
-🎯 CTP Sequence: ${ctpList.join(' → ')}`;
-  res += `
-🎯 Final CTP Winner: ${ctpWinner} ($30)`;
+🎯 CTP Sequence: ' + ctpList.join(' → ');
+  res += '
+🎯 Final CTP Winner: ' + ctpWinner + ' ($30)';
 
   out.textContent = res;
 };
