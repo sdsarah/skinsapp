@@ -1,82 +1,98 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Palacio Skins Scorecard</title>
   <style>
     body {
-      font-family: sans-serif;
-      margin: 2rem;
-      max-width: 700px;
+      font-family: system-ui, sans-serif;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      max-width: 720px;
+      background: #fff;
     }
-    h1, h2, h3 { margin-bottom: 0.5rem; }
-    form {
-      background: #f9f9f9;
-      padding: 1rem;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      margin-bottom: 1.5rem;
+    h1, h3 {
+      font-weight: 600;
     }
-    label { display: block; margin-top: 0.75rem; }
-    select, input[type="number"] {
-      margin-top: 0.3rem;
-      padding: 0.4rem;
-      width: 100%;
-      max-width: 200px;
-    }
-    input[type="radio"], input[type="checkbox"] { margin-right: 0.4rem; }
-    button {
+    label {
+      font-weight: 500;
+      display: block;
       margin-top: 1rem;
+    }
+    input[type="number"], select {
+      width: 100%;
+      max-width: 240px;
+      padding: 0.5rem;
+      font-size: 1rem;
+      margin-top: 0.3rem;
+    }
+    input[type="radio"], input[type="checkbox"] {
+      margin-right: 0.5rem;
+    }
+    button {
+      margin-top: 1.2rem;
       padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      font-weight: 600;
       border: none;
+      border-radius: 4px;
       background: #0366d6;
       color: white;
-      font-weight: bold;
-      border-radius: 4px;
       cursor: pointer;
     }
-    button:hover { background: #024fa0; }
-    #result-message { margin-top: 1rem; font-weight: bold; }
-    #scorecard, #live-summary { margin-top: 2rem; }
+    button:hover {
+      background: #024fa0;
+    }
+    .secondary-button {
+      background-color: #444;
+    }
+    .secondary-button:hover {
+      background-color: #222;
+    }
     table {
       width: 100%;
-      margin-top: 0.5rem;
       border-collapse: collapse;
+      margin-top: 1rem;
     }
     th, td {
       border: 1px solid #ccc;
       padding: 0.6rem;
       text-align: center;
     }
-    th { background: #eee; }
-    .scorecard-row th {
-      background: #f0f0f0;
-      width: 80px;
+    th {
+      background-color: #f0f0f0;
+    }
+    #admin-results {
+      background-color: #f9f9f9;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      white-space: pre-wrap;
+      margin-top: 2rem;
     }
   </style>
 </head>
 <body>
+
   <h1>Palacio Skins Scorecard</h1>
 
   <form id="score-form">
     <label for="player">Player:</label>
-    <select id="player" name="player" required>
-      <option value="">Select player</option>
-    </select>
+    <select id="player" required></select>
 
     <label for="week-number">Week Number:</label>
-    <input type="number" id="week-number" name="week_number" required min="1">
+    <input type="number" id="week-number" required min="1" />
 
     <h3 id="hole-label">Hole 1</h3>
     <div id="score-options">
-      <label><input type="radio" name="score" value="1" required> Hole-in-One</label><br>
-      <label><input type="radio" name="score" value="2"> Birdie</label><br>
-      <label><input type="radio" name="score" value="2*"> Chip-in Birdie</label><br>
-      <label><input type="radio" name="score" value="3+"> Par or Worse</label><br>
+      <label><input type="radio" name="score" value="1"> Hole-in-One</label>
+      <label><input type="radio" name="score" value="2"> Birdie</label>
+      <label><input type="radio" name="score" value="2*"> Chip-in Birdie</label>
+      <label><input type="radio" name="score" value="3+" checked> Par or Worse</label>
     </div>
 
     <div id="ctp-container" style="display: none;">
-      <label><input type="checkbox" id="ctp" name="ctp"> Closest to Pin (CTP)</label>
+      <label><input type="checkbox" id="ctp"> Closest to Pin (CTP)</label>
     </div>
 
     <button type="submit">Submit Hole</button>
@@ -87,58 +103,43 @@
   <div id="scorecard">
     <h3>Player Scorecard</h3>
     <table>
+      <thead>
+        <tr><th>Hole</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td></tr>
+      </thead>
       <tbody>
-        <tr class="scorecard-row">
-          <th>Hole</th>
-          <td id="hole-1">1</td>
-          <td id="hole-2">2</td>
-          <td id="hole-3">3</td>
-          <td id="hole-4">4</td>
-          <td id="hole-5">5</td>
-          <td id="hole-6">6</td>
-          <td id="hole-7">7</td>
-          <td id="hole-8">8</td>
-          <td id="hole-9">9</td>
-        </tr>
-        <tr class="scorecard-row">
+        <tr id="scorecard-row">
           <th>Score</th>
-          <td id="score-1">-</td>
-          <td id="score-2">-</td>
-          <td id="score-3">-</td>
-          <td id="score-4">-</td>
-          <td id="score-5">-</td>
-          <td id="score-6">-</td>
-          <td id="score-7">-</td>
-          <td id="score-8">-</td>
-          <td id="score-9">-</td>
+          <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <div id="admin-tools" style="display:none; margin-top: 2rem;">
+  <div id="admin-tools" style="display:none;">
     <h3>Admin Tools</h3>
     <label for="admin-week">Week to Finalize:</label>
-    <input type="number" id="admin-week" min="1" value="1">
+    <input type="number" id="admin-week" value="1" min="1" />
     <button id="calculate-payouts">💰 Finalize Scores & Calculate Payouts</button>
-    <pre id="admin-results" style="white-space: pre-wrap; background: #f0f0f0; padding: 1rem; border: 1px solid #ccc; margin-top: 1rem;"></pre>
+    <button id="clear-week" style="background:#e00;">🗑 Clear Week</button>
+    <button id="email-results" class="secondary-button">✉️ Email Results to Craig</button>
+    <pre id="admin-results"></pre>
   </div>
 
   <script type="module">
-    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    const supabaseUrl = 'https://htsipaxeqaumxntsrsvx.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88';
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(
+      'https://htsipaxeqaumxntsrsvx.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88'
+    );
 
     const players = ["Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
-
     const playerSelect = document.getElementById('player');
     players.forEach(name => {
-      const option = document.createElement('option');
-      option.value = name;
-      option.textContent = name;
-      playerSelect.appendChild(option);
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      playerSelect.appendChild(opt);
     });
 
     let currentHole = 1;
@@ -147,131 +148,102 @@
     function updateUIAfterSubmit() {
       currentHole++;
       document.getElementById('hole-label').textContent = `Hole ${currentHole}`;
-      document.querySelectorAll('input[name="score"]').forEach(input => input.checked = false);
+      document.querySelectorAll('input[name="score"]').forEach(i => i.checked = false);
       document.getElementById('ctp').checked = false;
       document.getElementById('ctp-container').style.display = currentHole === 9 ? 'block' : 'none';
-      scorecard.forEach((s, i) => {
-        document.getElementById(`score-${i + 1}`).textContent = s;
-      });
       if (currentHole > 9) {
-        document.getElementById('score-form').style.display = 'none';
-        const restartBtn = document.createElement('button');
-        restartBtn.textContent = 'Start Over';
-        restartBtn.onclick = () => location.reload();
-        document.getElementById('result-message').textContent = '✅ All 9 holes submitted!';
-        document.getElementById('result-message').appendChild(document.createElement('br'));
-        document.getElementById('result-message').appendChild(restartBtn);
+        document.getElementById('score-form').remove();
+        const msg = document.getElementById('result-message');
+        msg.innerHTML = '✅ All 9 holes submitted!<br>';
+        const restart = document.createElement('button');
+        restart.textContent = 'Start Over';
+        restart.onclick = () => location.reload();
+        msg.appendChild(restart);
       }
     }
 
     document.getElementById('score-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const player = document.getElementById('player').value;
-      const weekNumber = parseInt(document.getElementById('week-number').value, 10);
-      const scoreInput = document.querySelector('input[name="score"]:checked');
-      const score = scoreInput ? scoreInput.value : null;
-      const ctp = currentHole === 9 ? document.getElementById('ctp').checked : false;
+      const player = playerSelect.value;
+      const week = +document.getElementById('week-number').value;
+      const score = document.querySelector('input[name="score"]:checked')?.value;
+      const ctp = currentHole === 9 && document.getElementById('ctp').checked;
+      if (!player || !week || !score) return alert('Fill in all fields');
 
-      if (!score || !player || !weekNumber || isNaN(currentHole)) {
-        alert("Please fill in all fields.");
-        return;
-      }
-
-      const submission = { player, week_number: weekNumber, hole: currentHole, score, ctp };
-      const { data, error } = await supabase.from('Submissions').insert([submission]);
-
-      const messageEl = document.getElementById('result-message');
-      if (error) {
-        console.error('Supabase error:', error);
-        messageEl.textContent = `❌ Error: ${error.message}`;
-        messageEl.style.color = 'red';
-        return;
-      }
+      const { error } = await supabase.from('Submissions').insert([{ player, week_number: week, hole: currentHole, score, ctp }]);
+      if (error) return alert('Error submitting: ' + error.message);
 
       scorecard[currentHole - 1] = score;
-      messageEl.textContent = `✅ Hole ${currentHole} submitted!`;
-      messageEl.style.color = 'green';
+      document.querySelector(`#scorecard-row td:nth-child(${currentHole})`).textContent = score;
       updateUIAfterSubmit();
     });
 
     playerSelect.addEventListener('change', () => {
-      const name = playerSelect.value;
-      const isAdmin = name === 'Craig Sanger' || name === 'Commish';
+      const isAdmin = ["Craig Sanger", "Commish"].includes(playerSelect.value);
       document.getElementById('admin-tools').style.display = isAdmin ? 'block' : 'none';
     });
 
-    async function calculatePayouts(week) {
-      const { data, error } = await supabase
-        .from('Submissions')
-        .select('*')
-        .eq('week_number', week);
+    document.getElementById('calculate-payouts').onclick = async () => {
+      const week = +document.getElementById('admin-week').value;
+      const { data, error } = await supabase.from('Submissions').select('*').eq('week_number', week);
+      const out = document.getElementById('admin-results');
+      if (error) return out.textContent = '❌ ' + error.message;
 
-      const output = document.getElementById('admin-results');
-      if (error) {
-        output.textContent = '❌ Error loading submissions: ' + error.message;
-        return;
-      }
-
-      const byHole = {};
-      const shareMap = {};
+      const byHole = {}, shareMap = {}, aces = [], ctps = [];
       let totalShares = 0;
-      const aces = [];
-      const ctps = [];
 
-      data.forEach(row => {
-        if (!byHole[row.hole]) byHole[row.hole] = [];
-        byHole[row.hole].push(row);
-        if (row.score === '1') aces.push(row);
-        if (row.ctp) ctps.push(row);
+      data.forEach(r => {
+        if (!byHole[r.hole]) byHole[r.hole] = [];
+        byHole[r.hole].push(r);
+        if (r.score === '1') aces.push(r);
+        if (r.ctp) ctps.push(r);
       });
 
-      let results = '';
-
-      if (aces.length > 0) {
-        const aceWinners = [...new Set(aces.map(r => r.player))];
-        const split = (300 / aceWinners.length).toFixed(2);
-        results += `🎯 Hole-in-One winner(s):\n` + aceWinners.map(p => `- ${p}: $${split}`).join('\n') + '\n';
+      let res = '';
+      if (aces.length) {
+        const winners = [...new Set(aces.map(r => r.player))];
+        const prize = (300 / winners.length).toFixed(2);
+        res += `🎯 Hole-in-One Winner(s):\n` + winners.map(p => `- ${p}: $${prize}`).join('\n');
       } else {
         for (const hole in byHole) {
-          const entries = byHole[hole];
-          const birdies = entries.filter(r => r.score === '2');
-          const chipins = entries.filter(r => r.score === '2*');
-
-          if (birdies.length === 1 && chipins.length === 0) {
-            const p = birdies[0].player;
-            shareMap[p] = (shareMap[p] || 0) + 1;
+          const b = byHole[hole].filter(r => r.score === '2');
+          const c = byHole[hole].filter(r => r.score === '2*');
+          if (b.length === 1 && c.length === 0) {
+            shareMap[b[0].player] = (shareMap[b[0].player] || 0) + 1;
             totalShares++;
           }
-
-          if (chipins.length === 1 && birdies.length === 0) {
-            const p = chipins[0].player;
-            shareMap[p] = (shareMap[p] || 0) + 2;
+          if (c.length === 1 && b.length === 0) {
+            shareMap[c[0].player] = (shareMap[c[0].player] || 0) + 2;
             totalShares += 2;
           }
         }
-
-        results += `💸 Skin Results:\n`;
-        if (totalShares === 0) {
-          results += `- No skins were earned this week.\n`;
-        } else {
-          for (const [player, shares] of Object.entries(shareMap)) {
-            const payout = ((300 * shares) / totalShares).toFixed(2);
-            results += `- ${player}: $${payout} (${shares} share${shares > 1 ? 's' : ''})\n`;
-          }
+        res += `\n💸 Skin Results:\n`;
+        if (!totalShares) res += `- No skins awarded.`;
+        else for (const [p, s] of Object.entries(shareMap)) {
+          const amt = ((300 * s) / totalShares).toFixed(2);
+          res += `- ${p}: $${amt} (${s} share${s > 1 ? 's' : ''})\n`;
         }
       }
 
-      ctps.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      const ctpWinner = ctps.length ? ctps[0].player : 'Commish';
-      results += `\n🎯 CTP Winner: ${ctpWinner} ($30)`;
+      const ctpWinner = ctps.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0]?.player || 'Commish';
+      res += `\n🎯 CTP Winner: ${ctpWinner} ($30)`;
+      out.textContent = res;
+    };
 
-      output.textContent = results;
-    }
+    document.getElementById('clear-week').onclick = async () => {
+      const week = +document.getElementById('admin-week').value;
+      if (!week || !confirm(`Clear all entries for week ${week}?`)) return;
+      const { error } = await supabase.from('Submissions').delete().eq('week_number', week);
+      document.getElementById('admin-results').textContent = error ? '❌ ' + error.message : `✅ Week ${week} cleared.`;
+    };
 
-    document.getElementById('calculate-payouts').addEventListener('click', () => {
-      const week = parseInt(document.getElementById('admin-week').value, 10);
-      if (week > 0) calculatePayouts(week);
-    });
+    document.getElementById('email-results').onclick = () => {
+      const output = document.getElementById('admin-results').textContent.trim();
+      if (!output) return alert('Run payout calc first.');
+      const mailto = `mailto:craig.m.sanger@gmail.com?subject=${encodeURIComponent('Palacio Skins Results')}&body=${encodeURIComponent(output)}`;
+      window.open(mailto);
+    };
   </script>
+
 </body>
 </html>
