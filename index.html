@@ -228,7 +228,9 @@ document.getElementById('calculate-payouts').onclick = async () => {
   if (aces.length) {
     const winners = [...new Set(aces.map(r => r.player))];
     const prize = (300 / winners.length).toFixed(2);
-    res += `🎯 Hole-in-One Winner(s):\n` + winners.map(p => `- ${p}: $${prize}`).join('\n');
+    res += `🎯 Hole-in-One Winner(s):
+` + winners.map(p => `- ${p}: $${prize}`).join('
+');
   } else {
     for (const hole in byHole) {
       const scores = byHole[hole];
@@ -245,13 +247,16 @@ document.getElementById('calculate-payouts').onclick = async () => {
         totalShares += 2;
       }
     }
-    res += `\n💸 Skin Results:\n`;
+    res += `
+💸 Skin Results:
+`;
     if (!totalShares) {
       res += `- No skins awarded.`;
     } else {
       for (const [p, s] of Object.entries(shareMap)) {
         const amt = ((300 * s) / totalShares).toFixed(2);
-        res += `- ${p}: $${amt} (${s} share${s > 1 ? 's' : ''})\n`;
+        res += `- ${p}: $${amt} (${s} share${s > 1 ? 's' : ''})
+`;
       }
     }
   }
@@ -260,17 +265,27 @@ document.getElementById('calculate-payouts').onclick = async () => {
   const allHoles = Array.from({ length: 9 }, (_, i) => i + 1);
   allHoles.forEach(hole => {
     const scores = byHole[hole] || [];
-    const b = scores.filter(r => r.score === '2').length;
-    const c = scores.filter(r => r.score === '2*').length;
-    const a = scores.filter(r => r.score === '1').length;
-    recap.push(`Hole ${hole}: ${b ? `${b} birdie${b > 1 ? 's' : ''}` : 'no birdies'}, ${c ? `${c} chip-in${c > 1 ? 's' : ''}` : 'no chip-ins'}, ${a ? `${a} ace${a > 1 ? 's' : ''}` : 'no aces'}`);
+    const birdiePlayers = scores.filter(r => r.score === '2').map(r => r.player);
+    const chipinPlayers = scores.filter(r => r.score === '2*').map(r => r.player);
+    const acePlayers = scores.filter(r => r.score === '1').map(r => r.player);
+    const birdieSummary = birdiePlayers.length ? `${birdiePlayers.length} birdie${birdiePlayers.length > 1 ? 's' : ''} (${birdiePlayers.join(', ')})` : 'no birdies';
+    const chipinSummary = chipinPlayers.length ? `${chipinPlayers.length} chip-in${chipinPlayers.length > 1 ? 's' : ''} (${chipinPlayers.join(', ')})` : 'no chip-ins';
+    const aceSummary = acePlayers.length ? `${acePlayers.length} ace${acePlayers.length > 1 ? 's' : ''} (${acePlayers.join(', ')})` : 'no aces';
+    recap.push(`Hole ${hole}: ${birdieSummary}, ${chipinSummary}, ${aceSummary}`);
   });
 
   const ctpList = ctps.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r => r.player);
   const ctpWinner = ctpList.at(-1) || 'Commish';
-  res += `\n\n🏁 Full Recap:\n` + recap.join('\n');
-  res += `\n\n🎯 CTP Sequence: ${ctpList.join(' → ')}`;
-  res += `\n🎯 Final CTP Winner: ${ctpWinner} ($30)`;
+  res += `
+
+🏁 Full Recap:
+` + recap.join('
+');
+  res += `
+
+🎯 CTP Sequence: ${ctpList.join(' → ')}`;
+  res += `
+🎯 Final CTP Winner: ${ctpWinner} ($30)`;
 
   out.textContent = res;
 };
