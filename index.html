@@ -127,168 +127,76 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88'
 );
 
-const playerSelect = document.getElementById('player');
-const players = ["Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
-players.forEach(name => {
-  const option = document.createElement('option');
-  option.value = name;
-  option.textContent = name;
-  playerSelect.appendChild(option);
-});
-
-let currentHole = 1;
-const scorecard = Array(9).fill('-');
-
-playerSelect.addEventListener('change', () => {
-  const isAdmin = ["Craig Sanger", "Commish"].includes(playerSelect.value);
-  document.getElementById('admin-tools').style.display = isAdmin ? 'block' : 'none';
-  const week = +document.getElementById('week-number').value;
-  if (isAdmin && week) document.getElementById('admin-week').value = week;
-});
-
-async function loadLiveSummary(week) {
-  const { data, error } = await supabase.from('Submissions').select('hole, score').eq('week_number', week);
-  if (error) return console.error('Live summary error:', error);
-
-  const summary = Array.from({ length: 9 }, (_, i) => ({ hole: i + 1, birdies: 0, chipins: 0, aces: 0 }));
-  data.forEach(row => {
-    const h = summary[row.hole - 1];
-    if (row.score === '2') h.birdies++;
-    if (row.score === '2*') h.chipins++;
-    if (row.score === '1') h.aces++;
+window.addEventListener('DOMContentLoaded', () => {
+  const playerSelect = document.getElementById('player');
+  const players = ["Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
+  players.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    playerSelect.appendChild(option);
   });
 
-  const table = document.createElement('table');
-  table.innerHTML = `
-    <thead><tr><th>Hole</th><th>Birdies</th><th>Chip-ins</th><th>Aces</th></tr></thead>
-    <tbody>
-      ${summary.map(s => `<tr><td>${s.hole}</td><td>${s.birdies}</td><td>${s.chipins}</td><td>${s.aces}</td></tr>`).join('')}
-    </tbody>`;
-  const target = document.getElementById('live-summary');
-  target.innerHTML = '<h3>Live Summary</h3>';
-  target.appendChild(table);
-}
+  let currentHole = 1;
+  const scorecard = Array(9).fill('-');
 
-document.getElementById('score-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const player = playerSelect.value;
-  const week = +document.getElementById('week-number').value;
-  const score = document.querySelector('input[name="score"]:checked')?.value;
-  const ctp = currentHole === 9 && document.getElementById('ctp').checked;
-  if (!player || !week || !score) return alert('Fill in all fields');
+  document.getElementById('score-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const player = playerSelect.value;
+    const week = +document.getElementById('week-number').value;
+    const score = document.querySelector('input[name="score"]:checked')?.value;
+    const ctp = currentHole === 9 && document.getElementById('ctp').checked;
+    if (!player || !week || !score) return alert('Fill in all fields');
 
-  const { error } = await supabase.from('Submissions').insert([{ player, week_number: week, hole: currentHole, score, ctp }]);
-  if (error) return alert('Error submitting: ' + error.message);
+    const result = await supabase.from('Submissions').insert([{ player, week_number: week, hole: currentHole, score, ctp }]);
+    console.log('Insert result:', result);
+    if (result.error) return alert('Error submitting: ' + result.error.message);
 
-  const cell = document.querySelector(`#scorecard-row td:nth-child(${currentHole + 1})`);
-  if (cell) cell.textContent = score;
+    const cell = document.querySelector(`#scorecard-row td:nth-child(${currentHole + 1})`);
+    if (cell) cell.textContent = score;
 
-  currentHole++;
-  document.getElementById('hole-label').textContent = `Hole ${currentHole}`;
-  document.querySelectorAll('input[name="score"]').forEach(i => i.checked = false);
-  document.getElementById('ctp').checked = false;
-  document.getElementById('ctp-container').style.display = currentHole === 9 ? 'block' : 'none';
+    currentHole++;
+    document.getElementById('hole-label').textContent = `Hole ${currentHole}`;
+    document.querySelectorAll('input[name="score"]').forEach(i => i.checked = false);
+    document.getElementById('ctp').checked = false;
+    document.getElementById('ctp-container').style.display = currentHole === 9 ? 'block' : 'none';
 
-  loadLiveSummary(week);
+    loadLiveSummary(week);
 
-  if (currentHole > 9) {
-    document.getElementById('score-form').remove();
-    const msg = document.getElementById('result-message');
-    msg.innerHTML = '✅ All 9 holes submitted!<br>';
-    const restart = document.createElement('button');
-    restart.textContent = 'Start Over';
-    restart.onclick = () => location.reload();
-    msg.appendChild(restart);
+    if (currentHole > 9) {
+      document.getElementById('score-form').remove();
+      const msg = document.getElementById('result-message');
+      msg.innerHTML = '✅ All 9 holes submitted!<br>';
+      const restart = document.createElement('button');
+      restart.textContent = 'Start Over';
+      restart.onclick = () => location.reload();
+      msg.appendChild(restart);
+    }
+  });
+
+  async function loadLiveSummary(week) {
+    const { data, error } = await supabase.from('Submissions').select('hole, score').eq('week_number', week);
+    if (error) return console.error('Live summary error:', error);
+
+    const summary = Array.from({ length: 9 }, (_, i) => ({ hole: i + 1, birdies: 0, chipins: 0, aces: 0 }));
+    data.forEach(row => {
+      const h = summary[row.hole - 1];
+      if (row.score === '2') h.birdies++;
+      if (row.score === '2*') h.chipins++;
+      if (row.score === '1') h.aces++;
+    });
+
+    const table = document.createElement('table');
+    table.innerHTML = `
+      <thead><tr><th>Hole</th><th>Birdies</th><th>Chip-ins</th><th>Aces</th></tr></thead>
+      <tbody>
+        ${summary.map(s => `<tr><td>${s.hole}</td><td>${s.birdies}</td><td>${s.chipins}</td><td>${s.aces}</td></tr>`).join('')}
+      </tbody>`;
+    const target = document.getElementById('live-summary');
+    target.innerHTML = '<h3>Live Summary</h3>';
+    target.appendChild(table);
   }
 });
-
-document.getElementById('clear-week').onclick = async () => {
-  const week = +document.getElementById('admin-week').value;
-  if (!week || !confirm(`Clear all entries for week ${week}?`)) return;
-  const { error } = await supabase.from('Submissions').delete().eq('week_number', week);
-  document.getElementById('admin-results').textContent = error ? '❌ ' + error.message : `✅ Week ${week} cleared.`;
-};
-document.getElementById('calculate-payouts').onclick = async () => {
-  const week = +document.getElementById('admin-week').value;
-  const { data, error } = await supabase.from('Submissions').select('*').eq('week_number', week);
-  const out = document.getElementById('admin-results');
-  if (error) return out.textContent = '❌ ' + error.message;
-
-  const byHole = {}, shareMap = {}, aces = [], ctps = [];
-  let totalShares = 0;
-
-  data.forEach(r => {
-    if (!byHole[r.hole]) byHole[r.hole] = [];
-    byHole[r.hole].push(r);
-    if (r.score === '1') aces.push(r);
-    if (r.ctp) ctps.push(r);
-  });
-
-  let res = '';
-  if (aces.length) {
-    const winners = [...new Set(aces.map(r => r.player))];
-    const prize = (300 / winners.length).toFixed(2);
-    res += `🎯 Hole-in-One Winner(s):
-` + winners.map(p => `- ${p}: $${prize}`).join('
-');
-  } else {
-    for (const hole in byHole) {
-      const scores = byHole[hole];
-      const birdies = scores.filter(r => r.score === '2');
-      const chipins = scores.filter(r => r.score === '2*');
-      if (birdies.length === 1 && chipins.length === 0) {
-        const p = birdies[0].player;
-        shareMap[p] = (shareMap[p] || 0) + 1;
-        totalShares++;
-      }
-      if (chipins.length === 1 && birdies.length === 0) {
-        const p = chipins[0].player;
-        shareMap[p] = (shareMap[p] || 0) + 2;
-        totalShares += 2;
-      }
-    }
-    res += `
-💸 Skin Results:
-`;
-    if (!totalShares) {
-      res += `- No skins awarded.`;
-    } else {
-      for (const [p, s] of Object.entries(shareMap)) {
-        const amt = ((300 * s) / totalShares).toFixed(2);
-        res += `- ${p}: $${amt} (${s} share${s > 1 ? 's' : ''})
-`;
-      }
-    }
-  }
-
-  const recap = [];
-  const allHoles = Array.from({ length: 9 }, (_, i) => i + 1);
-  allHoles.forEach(hole => {
-    const scores = byHole[hole] || [];
-    const birdiePlayers = scores.filter(r => r.score === '2').map(r => r.player);
-    const chipinPlayers = scores.filter(r => r.score === '2*').map(r => r.player);
-    const acePlayers = scores.filter(r => r.score === '1').map(r => r.player);
-    const birdieSummary = birdiePlayers.length ? `${birdiePlayers.length} birdie${birdiePlayers.length > 1 ? 's' : ''} (${birdiePlayers.join(', ')})` : 'no birdies';
-    const chipinSummary = chipinPlayers.length ? `${chipinPlayers.length} chip-in${chipinPlayers.length > 1 ? 's' : ''} (${chipinPlayers.join(', ')})` : 'no chip-ins';
-    const aceSummary = acePlayers.length ? `${acePlayers.length} ace${acePlayers.length > 1 ? 's' : ''} (${acePlayers.join(', ')})` : 'no aces';
-    recap.push(`Hole ${hole}: ${birdieSummary}, ${chipinSummary}, ${aceSummary}`);
-  });
-
-  const ctpList = ctps.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r => r.player);
-  const ctpWinner = ctpList.at(-1) || 'Commish';
-  res += `
-
-🏁 Full Recap:
-` + recap.join('
-');
-  res += `
-
-🎯 CTP Sequence: ${ctpList.join(' → ')}`;
-  res += `
-🎯 Final CTP Winner: ${ctpWinner} ($30)`;
-
-  out.textContent = res;
-};
 </script>
 
 </body>
