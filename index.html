@@ -226,7 +226,9 @@ document.getElementById('calculate-payouts').onclick = async () => {
   if (aces.length) {
     const winners = [...new Set(aces.map(r => r.player))];
     const prize = (300 / winners.length).toFixed(2);
-    res += `🎯 Hole-in-One Winner(s):\n` + winners.map(p => `- ${p}: $${prize}`).join('\n');
+    res += `🎯 Hole-in-One Winner(s):
+` + winners.map(p => `- ${p}: $${prize}`).join('
+');
   } else {
     for (const hole in byHole) {
       const scores = byHole[hole];
@@ -243,13 +245,16 @@ document.getElementById('calculate-payouts').onclick = async () => {
         totalShares += 2;
       }
     }
-    res += `\n💸 Skin Results:\n`;
+    res += `
+💸 Skin Results:
+`;
     if (!totalShares) {
       res += `- No skins awarded.`;
     } else {
       for (const [p, s] of Object.entries(shareMap)) {
         const amt = ((300 * s) / totalShares).toFixed(2);
-        res += `- ${p}: $${amt} (${s} share${s > 1 ? 's' : ''})\n`;
+        res += `- ${p}: $${amt} (${s} share${s > 1 ? 's' : ''})
+`;
       }
     }
   }
@@ -266,9 +271,16 @@ document.getElementById('calculate-payouts').onclick = async () => {
 
   const ctpList = ctps.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r => r.player);
   const ctpWinner = ctpList.at(-1) || 'Commish';
-  res += `\n\n🏁 Full Recap:\n` + recap.join('\n');
-  res += `\n\n🎯 CTP Sequence: ${ctpList.join(' → ')}`;
-  res += `\n🎯 Final CTP Winner: ${ctpWinner} ($30)`;
+  res += `
+
+🏁 Full Recap:
+` + recap.join('
+');
+  res += `
+
+🎯 CTP Sequence: ${ctpList.join(' → ')}`;
+  res += `
+🎯 Final CTP Winner: ${ctpWinner} ($30)`;
 
   out.textContent = res;
 };
