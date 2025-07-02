@@ -8,8 +8,9 @@
     body {
       font-family: system-ui, sans-serif;
       margin: 2rem auto;
-      max-width: 720px;
       padding: 0 1rem;
+      max-width: 720px;
+      background: #fff;
     }
     h1, h3 {
       font-weight: 600;
@@ -112,10 +113,12 @@
   <label for="admin-week">Week to Finalize:</label>
   <input type="number" id="admin-week" value="1" min="1" />
   <button id="calculate-payouts">💰 Finalize Scores & Calculate Payouts</button>
-  <button id="clear-week" style="background:#e00;">🗑 Clear Week</button>
+  <button id="clear-week" style="background:#e00; color:white;">🗑 Clear Week</button>
   <pre id="admin-results"></pre>
 </div>
 
+<!-- The script logic begins here -->
+<!-- Insert updated <script type="module"> from canvas here -->
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -138,10 +141,40 @@ const scorecard = Array(9).fill('-');
 
 playerSelect.addEventListener('change', () => {
   const isAdmin = ["Craig Sanger", "Commish"].includes(playerSelect.value);
-  document.getElementById('admin-tools').style.display = isAdmin ? 'block' : 'none';
+  if (isAdmin) {
+    document.getElementById('admin-tools').style.display = 'block';
+    const week = +document.getElementById('week-number').value;
+    if (week) document.getElementById('admin-week').value = week;
+  }
 });
 
-document.getElementById('score-form').addEventListener('submit', async (e) => {
+async function loadLiveSummary(week) {
+  const { data, error } = await supabase.from('Submissions').select('hole, score').eq('week_number', week);
+  if (error) return console.error('Live summary error:', error);
+
+  const summary = Array.from({ length: 9 }, (_, i) => ({ hole: i + 1, birdies: 0, chipins: 0, aces: 0 }));
+  data.forEach(row => {
+    const h = summary[row.hole - 1];
+    if (row.score === '2') h.birdies++;
+    if (row.score === '2*') h.chipins++;
+    if (row.score === '1') h.aces++;
+  });
+
+  const table = document.createElement('table');
+  table.innerHTML = `
+    <thead><tr><th>Hole</th><th>Birdies</th><th>Chip-ins</th><th>Aces</th></tr></thead>
+    <tbody>
+      ${summary.map(s => `<tr><td>${s.hole}</td><td>${s.birdies}</td><td>${s.chipins}</td><td>${s.aces}</td></tr>`).join('')}
+    </tbody>`;
+  const target = document.getElementById('live-summary') || document.createElement('div');
+  target.id = 'live-summary';
+  target.innerHTML = '<h3>Live Summary</h3>';
+  target.appendChild(table);
+  document.body.appendChild(target);
+}
+
+const scoreForm = document.getElementById('score-form');
+scoreForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const player = playerSelect.value;
   const week = +document.getElementById('week-number').value;
@@ -162,13 +195,14 @@ document.getElementById('score-form').addEventListener('submit', async (e) => {
   document.getElementById('ctp-container').style.display = currentHole === 9 ? 'block' : 'none';
 
   if (currentHole > 9) {
-    document.getElementById('score-form').remove();
+    scoreForm.remove();
     const msg = document.getElementById('result-message');
     msg.innerHTML = '✅ All 9 holes submitted!<br>';
     const restart = document.createElement('button');
     restart.textContent = 'Start Over';
     restart.onclick = () => location.reload();
     msg.appendChild(restart);
+    loadLiveSummary(week);
   }
 });
 
