@@ -128,6 +128,7 @@ const supabase = createClient(
 );
 
 window.addEventListener('DOMContentLoaded', () => {
+  const adminTools = document.getElementById('admin-tools');
   const playerSelect = document.getElementById('player');
   const players = ["Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
   players.forEach(name => {
@@ -135,6 +136,14 @@ window.addEventListener('DOMContentLoaded', () => {
     option.value = name;
     option.textContent = name;
     playerSelect.appendChild(option);
+    
+    // Check for admin access
+    playerSelect.addEventListener('change', () => {
+      const isAdmin = ["Commish", "Craig Sanger"].includes(playerSelect.value);
+      adminTools.style.display = isAdmin ? 'block' : 'none';
+      const week = +document.getElementById('week-number').value;
+      if (isAdmin && week) document.getElementById('admin-week').value = week;
+    });
   });
 
   let currentHole = 1;
@@ -162,6 +171,97 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ctp-container').style.display = currentHole === 9 ? 'block' : 'none';
 
     loadLiveSummary(week);
+
+    // Finalize payouts
+    document.getElementById('calculate-payouts').onclick = async () => {
+      const week = +document.getElementById('admin-week').value;
+      const { data, error } = await supabase.from('Submissions').select('*').eq('week_number', week);
+      const out = document.getElementById('admin-results');
+      if (error) return out.textContent = '❌ ' + error.message;
+
+      const byHole = {}, shareMap = {}, aces = [], ctps = [];
+      let totalShares = 0;
+
+      data.forEach(r => {
+        if (!byHole[r.hole]) byHole[r.hole] = [];
+        byHole[r.hole].push(r);
+        if (r.score === '1') aces.push(r);
+        if (r.ctp) ctps.push(r);
+      });
+
+      let res = '';
+      if (aces.length) {
+        const winners = [...new Set(aces.map(r => r.player))];
+        const prize = (300 / winners.length).toFixed(2);
+        res += `🎯 Hole-in-One Winner(s):
+` + winners.map(p => `- ${p}: $${prize}`).join('
+');
+      } else {
+        for (const hole in byHole) {
+          const scores = byHole[hole];
+          const birdies = scores.filter(r => r.score === '2');
+          const chipins = scores.filter(r => r.score === '2*');
+          if (birdies.length === 1 && chipins.length === 0) {
+            const p = birdies[0].player;
+            shareMap[p] = (shareMap[p] || 0) + 1;
+            totalShares++;
+          }
+          if (chipins.length === 1 && birdies.length === 0) {
+            const p = chipins[0].player;
+            shareMap[p] = (shareMap[p] || 0) + 2;
+            totalShares += 2;
+          }
+        }
+        res += `
+
+💸 Skin Results:
+`;
+        if (!totalShares) {
+          res += `- No skins awarded.`;
+        } else {
+          for (const [p, s] of Object.entries(shareMap)) {
+            const amt = ((300 * s) / totalShares).toFixed(2);
+            res += `- ${p}: $${amt} (${s} share${s > 1 ? 's' : ''})
+`;
+          }
+        }
+      }
+
+      const recap = [];
+      const allHoles = Array.from({ length: 9 }, (_, i) => i + 1);
+      allHoles.forEach(hole => {
+        const scores = byHole[hole] || [];
+        const birdiePlayers = scores.filter(r => r.score === '2').map(r => r.player);
+        const chipinPlayers = scores.filter(r => r.score === '2*').map(r => r.player);
+        const acePlayers = scores.filter(r => r.score === '1').map(r => r.player);
+        const birdieSummary = birdiePlayers.length ? `${birdiePlayers.length} birdie${birdiePlayers.length > 1 ? 's' : ''} (${birdiePlayers.join(', ')})` : 'no birdies';
+        const chipinSummary = chipinPlayers.length ? `${chipinPlayers.length} chip-in${chipinPlayers.length > 1 ? 's' : ''} (${chipinPlayers.join(', ')})` : 'no chip-ins';
+        const aceSummary = acePlayers.length ? `${acePlayers.length} ace${acePlayers.length > 1 ? 's' : ''} (${acePlayers.join(', ')})` : 'no aces';
+        recap.push(`Hole ${hole}: ${birdieSummary}, ${chipinSummary}, ${aceSummary}`);
+      });
+
+      const ctpList = ctps.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r => r.player);
+      const ctpWinner = ctpList.at(-1) || 'Commish';
+      res += `
+
+🏁 Full Recap:
+` + recap.join('
+');
+      res += `
+
+🎯 CTP Sequence: ${ctpList.join(' → ')}`;
+      res += `
+🎯 Final CTP Winner: ${ctpWinner} ($30)`;
+
+      out.textContent = res;
+    };
+
+    document.getElementById('clear-week').onclick = async () => {
+      const week = +document.getElementById('admin-week').value;
+      if (!week || !confirm(`Clear all entries for week ${week}?`)) return;
+      const { error } = await supabase.from('Submissions').delete().eq('week_number', week);
+      document.getElementById('admin-results').textContent = error ? '❌ ' + error.message : `✅ Week ${week} cleared.`;
+    };
 
     if (currentHole > 9) {
       document.getElementById('score-form').remove();
