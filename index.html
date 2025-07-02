@@ -78,7 +78,9 @@
 
   <form id="score-form">
     <label for="player">Player:</label>
-    <select id="player" required></select>
+    <select id="player" required>
+      <option value="" disabled selected>Select a player</option>
+    </select>
 
     <label for="week-number">Week Number:</label>
     <input type="number" id="week-number" required min="1" />
@@ -133,34 +135,17 @@
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88'
     );
 
-    const players = ["Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
     const playerSelect = document.getElementById('player');
+    const players = ["Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
     players.forEach(name => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      playerSelect.appendChild(opt);
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      playerSelect.appendChild(option);
     });
 
     let currentHole = 1;
     const scorecard = Array(9).fill('-');
-
-    function updateUIAfterSubmit() {
-      currentHole++;
-      document.getElementById('hole-label').textContent = `Hole ${currentHole}`;
-      document.querySelectorAll('input[name="score"]').forEach(i => i.checked = false);
-      document.getElementById('ctp').checked = false;
-      document.getElementById('ctp-container').style.display = currentHole === 9 ? 'block' : 'none';
-      if (currentHole > 9) {
-        document.getElementById('score-form').remove();
-        const msg = document.getElementById('result-message');
-        msg.innerHTML = '✅ All 9 holes submitted!<br>';
-        const restart = document.createElement('button');
-        restart.textContent = 'Start Over';
-        restart.onclick = () => location.reload();
-        msg.appendChild(restart);
-      }
-    }
 
     document.getElementById('score-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -175,7 +160,22 @@
 
       scorecard[currentHole - 1] = score;
       document.querySelector(`#scorecard-row td:nth-child(${currentHole})`).textContent = score;
-      updateUIAfterSubmit();
+
+      currentHole++;
+      document.getElementById('hole-label').textContent = `Hole ${currentHole}`;
+      document.querySelectorAll('input[name="score"]').forEach(i => i.checked = false);
+      document.getElementById('ctp').checked = false;
+      document.getElementById('ctp-container').style.display = currentHole === 9 ? 'block' : 'none';
+
+      if (currentHole > 9) {
+        document.getElementById('score-form').remove();
+        const msg = document.getElementById('result-message');
+        msg.innerHTML = '✅ All 9 holes submitted!<br>';
+        const restart = document.createElement('button');
+        restart.textContent = 'Start Over';
+        restart.onclick = () => location.reload();
+        msg.appendChild(restart);
+      }
     });
 
     playerSelect.addEventListener('change', () => {
