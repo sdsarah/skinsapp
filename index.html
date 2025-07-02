@@ -127,10 +127,16 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88'
 );
 
-const playerSelect = document.getElementById('player');
-const players = ["Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
-players.forEach(name => {
-  const option = document.createElement('option');
+document.addEventListener('DOMContentLoaded', () => {
+  const playerSelect = document.getElementById('player');
+  const players = ["Commish", "Craig Sanger", "Alex Kim", "Alex Mattfolk", "Beau Schmitt", "Brett Heater", "Buzz Gibbs", "Chris Burman", "Curtis Strand", "Dan Gilliam", "Daniel Nunez", "Elijah Peterson", "Eric Ingersoll", "Erik Allison", "Gavin Lodge", "Gary Dilworth", "Jared Sanderson", "Jay Nakamura", "Jeff Jordan", "Jermell Mitchell", "Jim Giubilato", "Jory Adam", "Mark Gresser", "Mike Hurvitz", "Neil Gerber", "Roman Alper", "Ryan Haight", "Sean Edwards", "Steve Bonner", "Steve Jess"];
+  players.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    playerSelect.appendChild(option);
+  });
+});
   option.value = name;
   option.textContent = name;
   playerSelect.appendChild(option);
