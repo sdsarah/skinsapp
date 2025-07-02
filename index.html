@@ -94,15 +94,14 @@
 });
 
     function renderScorecard() {
-  const table = document.createElement('table');
-  const headerRow = document.createElement('tr');
-  headerRow.innerHTML = '<th>Hole</th>' + Array.from({ length: maxHoles }, (_, i) => `<th>${i + 1}</th>`).join('');
-  const scoreRow = document.createElement('tr');
-  scoreRow.innerHTML = '<td>Score</td>' + Array.from({ length: maxHoles }, (_, i) => `<td>${scores[i + 1] || '-'}</td>`).join('');
-  table.appendChild(headerRow);
-  table.appendChild(scoreRow);
-  scorecard.innerHTML = '<h3>Your Scorecard</h3>';
-  scorecard.appendChild(table);
+  let html = '<h3>Your Scorecard</h3>';
+  html += '<table><tr><th>Hole</th>';
+  for (let i = 1; i <= maxHoles; i++) html += `<th>${i}</th>`;
+  html += '</tr><tr><td>Score</td>';
+  for (let i = 1; i <= maxHoles; i++) html += `<td>${scores[i] || '-'}</td>`;
+  html += '</tr></table>';
+  scorecard.innerHTML = html;
+
 }
 
 function renderHoleForm() {
@@ -175,7 +174,7 @@ function renderHoleForm() {
       if (!player || !week) return alert('Please select a player and enter a week number first.');
       startRoundButton.classList.add('hidden');
       currentHole = 1;
-      for (let i = 1; i <= maxHoles; i++) scores[i] = '-';
+      for (let i = 1; i <= maxHoles; i++) delete scores[i];
       renderScorecard();
       renderHoleForm();
     });
@@ -218,7 +217,122 @@ function renderHoleForm() {
     renderLiveSummary();
 
     
-    // Remaining code unchanged...
+    document.getElementById('player').addEventListener('change', () => {
+  const player = document.getElementById('player').value;
+  const week = document.getElementById('week').value;
+  if (["Commish", "Craig Sanger"].includes(player)) {
+    adminPanel.classList.remove("hidden");
+    adminPanel.innerHTML = `
+      <h3>Admin Tools</h3>
+      <label>Week to Finalize: <input type="number" id="finalWeek" min="1" value="${week}" /></label>
+      <button onclick="finalizeScores()">💰 Finalize Scores & Calculate Payouts</button>
+      <button onclick="clearWeek()">🗑 Clear Week</button>
+      <pre id="adminResults">Admin Results will appear here.</pre>
+    `;
+  } else {
+    adminPanel.classList.add("hidden");
+  }
+});
+
+async function finalizeScores() {
+  const week = parseInt(document.getElementById('finalWeek').value);
+  if (!week) return alert('Enter a week number.');
+
+  const { data, error } = await client
+    .from('Submissions')
+    .select('*')
+    .eq('week_number', week);
+
+  if (error || !data || data.length === 0) {
+    document.getElementById('adminResults').textContent = 'Error or no data for this week.';
+    return;
+  }
+
+  let recap = '';
+  const byHole = {};
+  for (let i = 1; i <= 9; i++) byHole[i] = [];
+  data.forEach(entry => byHole[entry.hole].push(entry));
+
+  const aceWinners = data.filter(d => d.score === '1');
+
+  if (aceWinners.length > 0) {
+    const names = aceWinners.map(a => a.player).join(', ');
+    recap += `🎯 Ace Mode: $300 split among ${names}
+`;
+  } else {
+    let shares = {};
+    let totalShares = 0;
+    for (let h = 1; h <= 9; h++) {
+      const scores = byHole[h];
+      const birdies = scores.filter(s => s.score === '2');
+      const chipins = scores.filter(s => s.score === '2*');
+      const aces = scores.filter(s => s.score === '1');
+      if (aces.length > 0) {
+        const names = aces.map(p => p.player).join(', ');
+        recap += `Hole ${h}: Ace by ${names}
+`;
+      } else if (birdies.length === 1 && chipins.length === 0) {
+        shares[birdies[0].player] = (shares[birdies[0].player] || 0) + 1;
+        totalShares++;
+        recap += `Hole ${h}: Skin to ${birdies[0].player}
+`;
+      } else if (chipins.length === 1 && birdies.length === 0) {
+        shares[chipins[0].player] = (shares[chipins[0].player] || 0) + 2;
+        totalShares += 2;
+        recap += `Hole ${h}: Skin (chip-in) to ${chipins[0].player}
+`;
+      } else if (birdies.length > 0 || chipins.length > 0) {
+        const bNames = birdies.map(b => b.player).join(', ');
+        const cNames = chipins.map(c => c.player).join(', ');
+        let names = [];
+        if (bNames) names.push(`Birdies by ${bNames}`);
+        if (cNames) names.push(`Chip-in Birdies by ${cNames}`);
+        recap += `Hole ${h}: No skin - ${names.join(' and ')}
+`;
+      } else {
+        recap += `Hole ${h}: No action
+`;
+      }
+      }
+    const valuePerShare = totalShares > 0 ? 300 / totalShares : 0;
+    recap += `
+💸 Payouts:
+`;
+    for (const player in shares) {
+      const amount = (shares[player] * valuePerShare).toFixed(2);
+      recap += `${player}: $${amount}
+`;
+    }
+  }
+
+  const ctp = data.filter(d => d.hole === 9 && d.ctp);
+  if (ctp.length > 0) {
+    const last = ctp.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+    recap += `
+📍 CTP Winner: ${last.player} ($30)`;
+  } else {
+    recap += `
+📍 CTP Winner: Commish (default)`;
+  }
+
+  document.getElementById('adminResults').textContent = recap;
+}
+
+async function clearWeek() {
+  const week = parseInt(document.getElementById('finalWeek').value);
+  if (!confirm(`Clear all submissions for week ${week}?`)) return;
+  const { error } = await client
+    .from('Submissions')
+    .delete()
+    .eq('week_number', week);
+
+  if (error) {
+    document.getElementById('adminResults').textContent = 'Error clearing week.';
+  } else {
+    document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
+  }
+}
+
   </script>
 </body>
 </html>
