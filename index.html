@@ -103,8 +103,6 @@ document.getElementById('player').addEventListener('change', (e) => {
 
 // --- NEW: Listen for changes on the week input field ---
 document.getElementById('week').addEventListener('change', loadAndListenRecap);
-// You might also want keyup for more immediate feedback, but 'change' is fine for final selection
-// document.getElementById('week').addEventListener('keyup', loadAndListenRecap);
 
 
 function renderScorecard() {
@@ -164,7 +162,8 @@ async function handleHoleSubmit() {
     const submission = { player, week_number: week, hole: currentHole, score, ctp };
 
     try {
-        const { error } = await client.from('Submissions').insert([submission]);
+        // Change: 'Submissions' should be lowercase if that's how it's in your DB
+        const { error } = await client.from('Submissions').insert([submission]); // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
         if (error) throw error;
     } catch (err) {
         alert('Error submitting: ' + err.message);
@@ -176,22 +175,18 @@ async function handleHoleSubmit() {
     currentHole++;
     renderHoleForm(); // Render next hole or completion message
 
-    // Summary and recap are handled by their respective change listeners
-    // on week/player selection and the real-time listeners.
     renderLiveSummary(); // Update summary based on new submission
 }
 
-// --- MODIFIED: listenToRecap function to manage channels and fetch initial data ---
 function listenToRecap(weekNumber) {
-    // Unsubscribe from previous recap channel if it exists
     if (currentRecapChannel) {
         client.removeChannel(currentRecapChannel);
-        currentRecapChannel = null; // Clear the reference
+        currentRecapChannel = null;
     }
 
-    // Attempt to fetch existing recap when the function is called
+    // CHANGE: client.from('Recaps') to client.from('recaps')
     client
-        .from('Recaps')
+        .from('recaps')
         .select('recap_text')
         .eq('week_number', weekNumber)
         .single()
@@ -199,55 +194,48 @@ function listenToRecap(weekNumber) {
             if (data && data.recap_text) {
                 document.getElementById('recap').textContent = data.recap_text;
             } else {
-                // Clear recap if no data or invalid week
                 document.getElementById('recap').textContent = '';
             }
         });
 
-    // Set up real-time listener for future inserts/updates for the current week
     const channelName = `recap_week_${weekNumber}`;
     currentRecapChannel = client.channel(channelName)
         .on('postgres_changes', {
-            event: '*', // Listen for INSERT or UPDATE events
+            event: '*',
             schema: 'public',
-            table: 'Recaps',
+            // CHANGE: table: 'Recaps' to table: 'recaps'
+            table: 'recaps',
             filter: `week_number=eq.${weekNumber}`
         }, payload => {
-            // Update recap text on any change (insert/update)
             document.getElementById('recap').textContent = payload.new.recap_text;
         })
         .subscribe();
 }
 
-// --- MODIFIED: listenToLiveScores function to manage channels ---
 function listenToLiveScores(weekNumber) {
-    // Unsubscribe from previous live scores channel if it exists
     if (currentLiveScoresChannel) {
         client.removeChannel(currentLiveScoresChannel);
-        currentLiveScoresChannel = null; // Clear the reference
+        currentLiveScoresChannel = null;
     }
 
-    // Set up real-time listener for current week submissions
     const channelName = `submissions_week_${weekNumber}`;
     currentLiveScoresChannel = client.channel(channelName)
         .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` },
+            { event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` }, // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
             () => renderLiveSummary()
         )
         .subscribe();
 }
 
-// --- NEW: Helper function to consolidate loading logic for week-dependent data ---
 function loadAndListenRecap() {
     const weekInput = document.getElementById('week');
     const week = parseInt(weekInput.value);
     if (!isNaN(week) && week > 0) {
-        listenToRecap(week); // Load recap and set up listener
-        listenToLiveScores(week); // Load live scores and set up listener
-        renderLiveSummary(); // Also render summary immediately
+        listenToRecap(week);
+        listenToLiveScores(week);
+        renderLiveSummary();
     } else {
-        // If week is not valid, clear recap and summary, and unsubscribe
         document.getElementById('recap').textContent = '';
         summary.innerHTML = '';
         if (currentRecapChannel) {
@@ -261,12 +249,9 @@ function loadAndListenRecap() {
     }
 }
 
-
-// Initial setup when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    // If there's a pre-filled week or player, try to load data
-    loadAndListenRecap(); // This will handle initial loading for existing week/player values
-    renderLiveSummary(); // Ensure summary is rendered on load
+    loadAndListenRecap();
+    renderLiveSummary();
 });
 
 
@@ -279,9 +264,6 @@ startRoundButton.addEventListener('click', () => {
     for (let i = 1; i <= maxHoles; i++) delete scores[i];
     renderScorecard();
     renderHoleForm();
-    // No need to call listenToRecap/listenToLiveScores here directly,
-    // as loadAndListenRecap is already tied to the 'week' and 'player' change events.
-    // The initial call on DOMContentLoaded or subsequent changes will handle it.
 });
 
 function renderLiveSummary() {
@@ -290,6 +272,7 @@ function renderLiveSummary() {
         summary.innerHTML = '<p>Please enter a week number to see live summary.</p>';
         return;
     }
+    // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
     client
         .from('Submissions')
         .select('*')
@@ -322,11 +305,6 @@ function renderLiveSummary() {
         });
 }
 
-// Initial call of renderLiveSummary to populate it if week is already set on page load
-// This is now handled by loadAndListenRecap on DOMContentLoaded.
-// renderLiveSummary();
-
-
 document.getElementById('player').addEventListener('change', () => {
     const player = document.getElementById('player').value;
     const weekInput = document.getElementById('week');
@@ -341,21 +319,18 @@ document.getElementById('player').addEventListener('change', () => {
             <button onclick="clearWeek()">🗑 Clear Week</button>
             <pre id="adminResults">Admin Results will appear here.</pre>
         `;
-        // Ensure admin panel's finalWeek input updates recap on its own change
         document.getElementById('finalWeek').addEventListener('change', () => {
             const adminWeek = parseInt(document.getElementById('finalWeek').value);
             if (!isNaN(adminWeek) && adminWeek > 0) {
-                listenToRecap(adminWeek); // Make admin panel recap dynamic
+                listenToRecap(adminWeek);
             }
         });
-        // Initial load for admin panel's week
         if (!isNaN(parseInt(week)) && parseInt(week) > 0) {
             listenToRecap(parseInt(week));
         }
 
     } else {
         adminPanel.classList.add("hidden");
-        // When admin panel is hidden, ensure the recap displayed is for the *main* week input
         loadAndListenRecap();
     }
 });
@@ -365,6 +340,7 @@ async function finalizeScores() {
     const week = parseInt(document.getElementById('finalWeek').value);
     if (!week) return alert('Enter a week number.');
 
+    // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
     const { data, error } = await client
         .from('Submissions')
         .select('*')
@@ -432,20 +408,22 @@ async function finalizeScores() {
     }
 
     document.getElementById('adminResults').textContent = recap;
-    // The upsert here will trigger the real-time listener for all connected clients on this week
-    await client.from('Recaps').upsert({ week_number: week, recap_text: recap });
+    // CHANGE: client.from('Recaps') to client.from('recaps')
+    await client.from('recaps').upsert({ week_number: week, recap_text: recap });
 }
 
 async function clearWeek() {
     const week = parseInt(document.getElementById('finalWeek').value);
     if (!confirm(`Clear all submissions for week ${week}? This action cannot be undone.`)) return;
+    // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
     const { error: submissionsError } = await client
         .from('Submissions')
         .delete()
         .eq('week_number', week);
 
+    // CHANGE: client.from('Recaps') to client.from('recaps')
     const { error: recapsError } = await client
-        .from('Recaps')
+        .from('recaps')
         .delete()
         .eq('week_number', week);
 
@@ -453,8 +431,7 @@ async function clearWeek() {
         document.getElementById('adminResults').textContent = 'Error clearing week: ' + (submissionsError?.message || '') + (recapsError?.message || '');
     } else {
         document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
-        // Clear recap for this week for all users after clearing
-        document.getElementById('recap').textContent = '';
+        document.getElementById('recap').textContent = ''; // Clear recap for this week for all users after clearing
     }
 }
 
