@@ -156,8 +156,7 @@ button:hover {
 <div id="celebrationMessage" class="hidden"></div>
 
 <script>
-// NEW: Test alert to see if script is running at all
-alert("Script is running!");
+// REMOVED: alert("Script is running!");
 
 const SUPABASE_URL = 'https://htsipaxeqaumxntsrsvx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88';
@@ -181,7 +180,7 @@ let currentRecapChannel = null;
 let currentLiveScoresChannel = null;
 
 playerSelect.addEventListener('change', (e) => {
-    console.log('Player select changed');
+    // console.log('Player select changed'); // Removed console.log
     const otherPlayerInput = document.getElementById('otherPlayer');
     otherPlayerInput.classList.toggle('hidden', e.target.value !== 'Other');
     if (e.target.value === 'Other') {
@@ -191,7 +190,7 @@ playerSelect.addEventListener('change', (e) => {
 });
 
 weekInput.addEventListener('change', () => {
-    console.log('Week input changed');
+    // console.log('Week input changed'); // Removed console.log
     loadAndListenRecap();
 });
 
@@ -211,7 +210,7 @@ function renderScorecard() {
 }
 
 function renderHoleForm() {
-    console.log('renderHoleForm called for hole:', currentHole);
+    // console.log('renderHoleForm called for hole:', currentHole); // Removed console.log
     holeSection.innerHTML = '';
     if (currentHole > maxHoles) {
         holeSection.innerHTML = '<p>All holes submitted. <button onclick="location.reload()">Restart</button></p>';
@@ -247,7 +246,7 @@ function renderHoleForm() {
 }
 
 async function handleHoleSubmit() {
-    console.log('handleHoleSubmit called');
+    // console.log('handleHoleSubmit called'); // Removed console.log
     const player = playerSelect.value === 'Other'
         ? document.getElementById('otherPlayer').value.trim()
         : playerSelect.value;
@@ -265,10 +264,10 @@ async function handleHoleSubmit() {
     try {
         const { error } = await client.from('Submissions').insert([submission]);
         if (error) throw error;
-        console.log('Submission successful for hole', currentHole);
+        // console.log('Submission successful for hole', currentHole); // Removed console.log
     } catch (err) {
         alert('Error submitting: ' + err.message);
-        console.error('Submission error:', err);
+        // console.error('Submission error:', err); // Removed console.log
         return;
     }
 
@@ -300,7 +299,7 @@ async function handleHoleSubmit() {
 }
 
 function listenToRecap(weekNumber) {
-    console.log('listenToRecap called for week:', weekNumber);
+    // console.log('listenToRecap called for week:', weekNumber); // Removed console.log
     if (currentRecapChannel) {
         client.removeChannel(currentRecapChannel);
         currentRecapChannel = null;
@@ -317,7 +316,7 @@ function listenToRecap(weekNumber) {
             } else {
                 document.getElementById('recap').textContent = '';
             }
-            console.log('Recap initial fetch result:', data);
+            // console.log('Recap initial fetch result:', data); // Removed console.log
         })
         .catch(err => console.error('Recap initial fetch error:', err));
 
@@ -329,15 +328,15 @@ function listenToRecap(weekNumber) {
             table: 'recaps',
             filter: `week_number=eq.${weekNumber}`
         }, payload => {
-            console.log('Recap real-time update received:', payload);
+            // console.log('Recap real-time update received:', payload); // Removed console.log
             document.getElementById('recap').textContent = payload.new.recap_text;
         })
-        .subscribe(() => console.log('Recap channel subscribed:', channelName))
+        .subscribe(() => { /* console.log('Recap channel subscribed:', channelName) */ }) // Removed console.log
         .catch(err => console.error('Recap channel subscription error:', err));
 }
 
 function listenToLiveScores(weekNumber) {
-    console.log('listenToLiveScores called for week:', weekNumber);
+    // console.log('listenToLiveScores called for week:', weekNumber); // Removed console.log
     if (currentLiveScoresChannel) {
         client.removeChannel(currentLiveScoresChannel);
         currentLiveScoresChannel = null;
@@ -349,16 +348,16 @@ function listenToLiveScores(weekNumber) {
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` },
             () => {
-                console.log('Live scores real-time update received');
+                // console.log('Live scores real-time update received'); // Removed console.log
                 renderLiveSummary();
             }
         )
-        .subscribe(() => console.log('Live scores channel subscribed:', channelName))
+        .subscribe(() => { /* console.log('Live scores channel subscribed:', channelName) */ }) // Removed console.log
         .catch(err => console.error('Live scores channel subscription error:', err));
 }
 
 function loadAndListenRecap() {
-    console.log('loadAndListenRecap called');
+    // console.log('loadAndListenRecap called'); // Removed console.log
     const week = parseInt(weekInput.value);
 
     if (!isNaN(week) && week > 0) {
@@ -370,12 +369,12 @@ function loadAndListenRecap() {
             const finalWeekInput = document.getElementById('finalWeek');
             if (finalWeekInput) {
                 finalWeekInput.value = week;
-                console.log('Admin finalWeek input updated to:', week);
+                // console.log('Admin finalWeek input updated to:', week); // Removed console.log
             }
         }
 
     } else {
-        console.log('Week is not a valid number or not set.');
+        // console.log('Week is not a valid number or not set.'); // Removed console.log
         document.getElementById('recap').textContent = '';
         summary.innerHTML = '';
         if (currentRecapChannel) {
@@ -390,14 +389,14 @@ function loadAndListenRecap() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOMContentLoaded triggered');
+    // console.log('DOMContentLoaded triggered'); // Removed console.log
     const today = new Date();
-    console.log('Current year:', today.getFullYear());
-    console.log('weekInput element:', weekInput);
+    // console.log('Current year:', today.getFullYear()); // Removed console.log
+    // console.log('weekInput element:', weekInput); // Removed console.log
 
 
     if (today.getFullYear() === 2025) {
-        console.log('Default week logic running for year 2025.');
+        // console.log('Default week logic running for year 2025.'); // Removed console.log
         const currentDay = today.getDay();
         const currentMonday = new Date(today);
         
@@ -413,11 +412,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const diffWeeks = Math.round(diffMs / msPerWeek);
 
         const defaultCalculatedWeek = 9 + diffWeeks;
-        console.log('Calculated default week:', defaultCalculatedWeek);
+        // console.log('Calculated default week:', defaultCalculatedWeek); // Removed console.log
         weekInput.value = defaultCalculatedWeek;
-        console.log('Week input value set to:', weekInput.value);
+        // console.log('Week input value set to:', weekInput.value); // Removed console.log
     } else {
-        console.log('Default week logic NOT running. Year is not 2025.');
+        // console.log('Default week logic NOT running. Year is not 2025.'); // Removed console.log
     }
 
     loadAndListenRecap();
@@ -426,31 +425,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 startRoundButton.addEventListener('click', () => {
-    console.log('Start Round button clicked!');
+    // console.log('Start Round button clicked!'); // Removed console.log
     const player = playerSelect.value;
     const week = weekInput.value;
-    console.log('Player selected:', player, 'Week selected:', week);
+    // console.log('Player selected:', player, 'Week selected:', week); // Removed console.log
 
     if (!player || !week) return alert('Please select a player and enter a week number first.');
 
     startRoundButton.classList.add('hidden');
     playerSelect.disabled = true;
     weekInput.disabled = true;
-    console.log('Player/Week inputs disabled.');
+    // console.log('Player/Week inputs disabled.'); // Removed console.log
 
     currentHole = 1;
     for (let i = 1; i <= maxHoles; i++) delete scores[i];
     renderScorecard();
     renderHoleForm();
-    console.log('Render scorecard and hole form called.');
+    // console.log('Render scorecard and hole form called.'); // Removed console.log
 });
 
 function renderLiveSummary() {
-    console.log('renderLiveSummary called');
+    // console.log('renderLiveSummary called'); // Removed console.log
     const week = parseInt(weekInput.value);
     if (!week) {
         summary.innerHTML = '';
-        console.log('No week set for summary, clearing summary area.');
+        // console.log('No week set for summary, clearing summary area.'); // Removed console.log
         return;
     }
     client
@@ -460,10 +459,10 @@ function renderLiveSummary() {
         .then(({ data, error }) => {
             if (error || !data) {
                 summary.innerHTML = '<p>Error loading summary</p>';
-                console.error('Error loading summary:', error);
+                // console.error('Error loading summary:', error); // Removed console.log
                 return;
             }
-            console.log('Summary data fetched:', data);
+            // console.log('Summary data fetched:', data); // Removed console.log
 
             const holeStats = {};
             for (let i = 1; i <= 9; i++) {
@@ -484,13 +483,13 @@ function renderLiveSummary() {
             }
             html += '</table>';
             summary.innerHTML = html;
-            console.log('Live summary rendered.');
+            // console.log('Live summary rendered.'); // Removed console.log
         })
         .catch(err => console.error('Error in renderLiveSummary fetch:', err));
 }
 
 document.getElementById('player').addEventListener('change', () => {
-    console.log('Player select change detected for admin panel logic.');
+    // console.log('Player select change detected for admin panel logic.'); // Removed console.log
     const player = playerSelect.value;
     const week = weekInput.value || 1;
 
@@ -512,18 +511,18 @@ document.getElementById('player').addEventListener('change', () => {
         if (!isNaN(parseInt(week)) && parseInt(week) > 0) {
             listenToRecap(parseInt(week));
         }
-        console.log('Admin panel shown and initialized.');
+        // console.log('Admin panel shown and initialized.'); // Removed console.log
 
     } else {
         adminPanel.classList.add("hidden");
         loadAndListenRecap();
-        console.log('Admin panel hidden.');
+        // console.log('Admin panel hidden.'); // Removed console.log
     }
 });
 
 
 async function finalizeScores() {
-    console.log('finalizeScores called');
+    // console.log('finalizeScores called'); // Removed console.log
     const week = parseInt(document.getElementById('finalWeek').value);
     if (!week) return alert('Enter a week number.');
 
@@ -537,7 +536,7 @@ async function finalizeScores() {
 
         if (!data || data.length === 0) {
             document.getElementById('adminResults').textContent = 'Error or no data for this week.';
-            console.warn('No submission data for week', week);
+            // console.warn('No submission data for week', week); // Removed console.log
             return;
         }
 
@@ -599,16 +598,16 @@ async function finalizeScores() {
 
         document.getElementById('adminResults').textContent = recap;
         await client.from('recaps').upsert({ week_number: week, recap_text: recap });
-        console.log('Finalization and recap upsert successful.');
+        // console.log('Finalization and recap upsert successful.'); // Removed console.log
 
     } catch (err) {
         document.getElementById('adminResults').textContent = 'Error finalizing: ' + err.message;
-        console.error('Finalization error:', err);
+        // console.error('Finalization error:', err); // Removed console.log
     }
 }
 
 async function clearWeek() {
-    console.log('clearWeek called');
+    // console.log('clearWeek called'); // Removed console.log
     const week = parseInt(document.getElementById('finalWeek').value);
     if (!confirm(`Clear all submissions for week ${week}? This action cannot be undone.`)) return;
 
@@ -627,10 +626,10 @@ async function clearWeek() {
 
         document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
         document.getElementById('recap').textContent = '';
-        console.log(`Week ${week} cleared successfully.`);
+        // console.log(`Week ${week} cleared successfully.`); // Removed console.log
     } catch (err) {
         document.getElementById('adminResults').textContent = 'Error clearing week: ' + err.message;
-        console.error('Clear week error:', err);
+        // console.error('Clear week error:', err); // Removed console.log
     }
 }
 
