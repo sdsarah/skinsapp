@@ -95,19 +95,14 @@ button:hover {
     opacity: 0;
 }
 
-/* REMOVED: Logo Image Styles */
-/* #logo {
-    display: block;
-    margin: 1rem auto;
-    max-width: 180px;
-    height: auto;
-} */
-
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <h1>Palacio Skins Scorecard</h1>
+
+<!-- MOVED: Recap section is now here, at the top -->
+<pre id="recap" style="margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
 
 <div id="scorecard"></div>
 
@@ -158,7 +153,6 @@ button:hover {
 
 <div id="summary"></div>
 <div id="adminTools" class="admin hidden"></div>
-<pre id="recap" style="margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
 
 
 <div id="celebrationMessage" class="hidden"></div>
@@ -377,7 +371,7 @@ function loadAndListenRecap() {
 document.addEventListener('DOMContentLoaded', () => {
     const today = new Date();
 
-    // NEW: Only apply default week logic if the current year is 2025
+    // Only apply default week logic if the current year is 2025
     if (today.getFullYear() === 2025) {
         const currentDay = today.getDay(); // 0 (Sunday) to 6 (Saturday)
         const currentMonday = new Date(today); // Create a copy
@@ -394,12 +388,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const diffMs = currentMonday.getTime() - referenceDate.getTime();
         const diffWeeks = Math.round(diffMs / msPerWeek); // Calculate difference in weeks
 
-        const defaultCalculatedWeek = 9 + diffWeeks; // Add to reference week number
+        const defaultCalculatedWeek = 9 + diffWeeks; // Adjusted to Week 9
         weekInput.value = defaultCalculatedWeek; // Set the calculated week as the default
     }
 
-    loadAndListenRecap(); // Now load data for the defaulted week (or empty if no default)
-    renderLiveSummary(); // Ensure summary loads for the defaulted week (or empty if no default)
+    loadAndListenRecap();
+    renderLiveSummary();
 });
 
 
@@ -508,79 +502,4 @@ async function finalizeScores() {
     const aceWinners = data.filter(d => d.score === '1');
 
     if (aceWinners.length > 0) {
-        const names = aceWinners.map(a => a.player).join(', ');
-        recap += `🎯 Ace Mode: $300 split among ${names}\n`;
-    } else {
-        let shares = {};
-        let totalShares = 0;
-        for (let h = 1; h <= 9; h++) {
-            const scores = byHole[h];
-            const birdies = scores.filter(s => s.score === '2');
-            const chipins = scores.filter(s => s.score === '2*');
-            const aces = scores.filter(s => s.score === '1');
-            if (aces.length > 0) {
-                const names = aces.map(p => p.player).join(', ');
-                recap += `Hole ${h}: Ace by ${names}\n`;
-            } else if (birdies.length === 1 && chipins.length === 0) {
-                shares[birdies[0].player] = (shares[birdies[0].player] || 0) + 1;
-                totalShares++;
-                recap += `Hole ${h}: Skin to ${birdies[0].player}\n`;
-            } else if (chipins.length === 1 && birdies.length === 0) {
-                shares[chipins[0].player] = (shares[chipins[0].player] || 0) + 2;
-                totalShares += 2;
-                recap += `Hole ${h}: Skin (chip-in) to ${chipins[0].player}\n`;
-            } else if (birdies.length > 0 || chipins.length > 0) {
-                const bNames = birdies.map(b => b.player).join(', ');
-                const cNames = chipins.map(c => c.player).join(', ');
-                let names = [];
-                if (bNames) names.push(`Birdies by ${bNames}`);
-                if (cNames) names.push(`Chip-in Birdies by ${cNames}`);
-                recap += `Hole ${h}: No skin - ${names.join(' and ')}\n`;
-            } else {
-                recap += `Hole ${h}: No action\n`;
-            }
-        }
-        const valuePerShare = totalShares > 0 ? 300 / totalShares : 0;
-        recap += `\n💸 Payouts:\n`;
-        for (const player in shares) {
-            const amount = (shares[player] * valuePerShare).toFixed(2);
-            recap += `${player}: $${amount}\n`;
-        }
-    }
-
-    const ctp = data.filter(d => d.hole === 9 && d.ctp);
-    if (ctp.length > 0) {
-        const last = ctp.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-        recap += `\n📍 CTP Winner: ${last.player} ($30)`;
-    } else {
-        recap += `\n📍 CTP Winner: Commish (default)`;
-    }
-
-    document.getElementById('adminResults').textContent = recap;
-    await client.from('recaps').upsert({ week_number: week, recap_text: recap });
-}
-
-async function clearWeek() {
-    const week = parseInt(document.getElementById('finalWeek').value);
-    if (!confirm(`Clear all submissions for week ${week}? This action cannot be undone.`)) return;
-    const { error: submissionsError } = await client
-        .from('Submissions')
-        .delete()
-        .eq('week_number', week);
-
-    const { error: recapsError } = await client
-        .from('recaps')
-        .delete()
-        .eq('week_number', week);
-
-    if (submissionsError || recapsError) {
-        document.getElementById('adminResults').textContent = 'Error clearing week: ' + (submissionsError?.message || '') + (recapsError?.message || '');
-    } else {
-        document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
-        document.getElementById('recap').textContent = '';
-    }
-}
-
-</script>
-</body>
-</html>
+        const names = aceWinners.map(a => a.player).join(',
