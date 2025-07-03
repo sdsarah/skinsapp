@@ -101,7 +101,7 @@ document.getElementById('player').addEventListener('change', (e) => {
     loadAndListenRecap();
 });
 
-// --- NEW: Listen for changes on the week input field ---
+// --- Listen for changes on the week input field ---
 document.getElementById('week').addEventListener('change', loadAndListenRecap);
 
 
@@ -162,7 +162,6 @@ async function handleHoleSubmit() {
     const submission = { player, week_number: week, hole: currentHole, score, ctp };
 
     try {
-        // Change: 'Submissions' should be lowercase if that's how it's in your DB
         const { error } = await client.from('Submissions').insert([submission]); // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
         if (error) throw error;
     } catch (err) {
@@ -173,9 +172,9 @@ async function handleHoleSubmit() {
     scores[currentHole] = score;
     renderScorecard();
     currentHole++;
-    renderHoleForm(); // Render next hole or completion message
+    renderHoleForm();
 
-    renderLiveSummary(); // Update summary based on new submission
+    renderLiveSummary();
 }
 
 function listenToRecap(weekNumber) {
@@ -184,9 +183,8 @@ function listenToRecap(weekNumber) {
         currentRecapChannel = null;
     }
 
-    // CHANGE: client.from('Recaps') to client.from('recaps')
     client
-        .from('recaps')
+        .from('recaps') // Corrected casing
         .select('recap_text')
         .eq('week_number', weekNumber)
         .single()
@@ -203,8 +201,7 @@ function listenToRecap(weekNumber) {
         .on('postgres_changes', {
             event: '*',
             schema: 'public',
-            // CHANGE: table: 'Recaps' to table: 'recaps'
-            table: 'recaps',
+            table: 'recaps', // Corrected casing
             filter: `week_number=eq.${weekNumber}`
         }, payload => {
             document.getElementById('recap').textContent = payload.new.recap_text;
@@ -231,10 +228,22 @@ function listenToLiveScores(weekNumber) {
 function loadAndListenRecap() {
     const weekInput = document.getElementById('week');
     const week = parseInt(weekInput.value);
+
     if (!isNaN(week) && week > 0) {
         listenToRecap(week);
         listenToLiveScores(week);
         renderLiveSummary();
+
+        // --- NEW LOGIC: Update admin 'finalWeek' input if admin is selected and panel is visible ---
+        const playerSelect = document.getElementById('player');
+        if (["Commish", "Craig Sanger"].includes(playerSelect.value)) {
+            const finalWeekInput = document.getElementById('finalWeek');
+            if (finalWeekInput) { // Ensure the admin panel is rendered and the input exists
+                finalWeekInput.value = week; // Update the admin's week input to match the main selected week
+            }
+        }
+        // --- END NEW LOGIC ---
+
     } else {
         document.getElementById('recap').textContent = '';
         summary.innerHTML = '';
@@ -272,7 +281,6 @@ function renderLiveSummary() {
         summary.innerHTML = '<p>Please enter a week number to see live summary.</p>';
         return;
     }
-    // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
     client
         .from('Submissions')
         .select('*')
@@ -340,7 +348,6 @@ async function finalizeScores() {
     const week = parseInt(document.getElementById('finalWeek').value);
     if (!week) return alert('Enter a week number.');
 
-    // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
     const { data, error } = await client
         .from('Submissions')
         .select('*')
@@ -408,22 +415,19 @@ async function finalizeScores() {
     }
 
     document.getElementById('adminResults').textContent = recap;
-    // CHANGE: client.from('Recaps') to client.from('recaps')
-    await client.from('recaps').upsert({ week_number: week, recap_text: recap });
+    await client.from('recaps').upsert({ week_number: week, recap_text: recap }); // Corrected casing
 }
 
 async function clearWeek() {
     const week = parseInt(document.getElementById('finalWeek').value);
     if (!confirm(`Clear all submissions for week ${week}? This action cannot be undone.`)) return;
-    // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
     const { error: submissionsError } = await client
         .from('Submissions')
         .delete()
         .eq('week_number', week);
 
-    // CHANGE: client.from('Recaps') to client.from('recaps')
     const { error: recapsError } = await client
-        .from('recaps')
+        .from('recaps') // Corrected casing
         .delete()
         .eq('week_number', week);
 
