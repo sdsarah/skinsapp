@@ -95,22 +95,11 @@ button:hover {
     opacity: 0;
 }
 
-/* Styles for the embedded Google Sheet iframe */
-#googleSheetEmbed {
-    width: 100%;
-    height: 600px; /* You can adjust this height as needed */
-    border: 1px solid #ccc; /* Subtle border */
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Slight shadow */
-}
-
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <h1>Palacio Skins Scorecard</h1>
-
-<pre id="recap" style="margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
 
 <div id="scorecard"></div>
 
@@ -161,19 +150,14 @@ button:hover {
 
 <div id="summary"></div>
 <div id="adminTools" class="admin hidden"></div>
+<pre id="recap" style="margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
 
-<button id="toggleLeaderboard" type="button" style="margin-top: 1rem;">View Running Leaderboard</button>
-
-<div id="leaderboardSection" class="hidden" style="margin-top: 1rem;">
-    <h3>Running Leaderboard</h3>
-    <p>Data updated manually via Google Sheet. Please allow a few minutes for new updates to appear.</p>
-    <iframe id="googleSheetEmbed" src="https://docs.google.com/spreadsheets/d/e/2PACX-1vRIul1mRp3I1muiEpvLpeodW_3HWkElJ0bUSscf_8iDPrdJuTdQkdT5piGTdGCU3d_V7P7JN-hHYgsz/pubhtml?widget=true&amp;headers=false" width="100%" height="600" frameborder="0">Loading Leaderboard...</iframe>
-    <button id="hideLeaderboard" type="button" style="margin-top: 0.5rem;">Hide Leaderboard</button>
-</div>
 
 <div id="celebrationMessage" class="hidden"></div>
 
 <script>
+// REMOVED: alert("Script is running!");
+
 const SUPABASE_URL = 'https://htsipaxeqaumxntsrsvx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88';
 const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -191,14 +175,12 @@ const startRoundButton = document.getElementById('startRound');
 const playerSelect = document.getElementById('player');
 const weekInput = document.getElementById('week');
 
-const toggleLeaderboardButton = document.getElementById('toggleLeaderboard');
-const leaderboardSection = document.getElementById('leaderboardSection');
-const hideLeaderboardButton = document.getElementById('hideLeaderboard');
-
+// --- Global variables to manage Supabase channel subscriptions ---
 let currentRecapChannel = null;
 let currentLiveScoresChannel = null;
 
 playerSelect.addEventListener('change', (e) => {
+    // console.log('Player select changed'); // Removed console.log
     const otherPlayerInput = document.getElementById('otherPlayer');
     otherPlayerInput.classList.toggle('hidden', e.target.value !== 'Other');
     if (e.target.value === 'Other') {
@@ -208,27 +190,8 @@ playerSelect.addEventListener('change', (e) => {
 });
 
 weekInput.addEventListener('change', () => {
+    // console.log('Week input changed'); // Removed console.log
     loadAndListenRecap();
-});
-
-toggleLeaderboardButton.addEventListener('click', () => {
-    leaderboardSection.classList.remove('hidden');
-    form.classList.add('hidden');
-    scorecard.classList.add('hidden');
-    summary.classList.add('hidden');
-    adminPanel.classList.add('hidden');
-    toggleLeaderboardButton.classList.add('hidden');
-});
-
-hideLeaderboardButton.addEventListener('click', () => {
-    leaderboardSection.classList.add('hidden');
-    form.classList.remove('hidden');
-    scorecard.classList.remove('hidden');
-    summary.classList.remove('hidden');
-    if (["Commish", "Craig Sanger"].includes(playerSelect.value)) {
-        adminPanel.classList.remove('hidden');
-    }
-    toggleLeaderboardButton.classList.remove('hidden');
 });
 
 
@@ -247,6 +210,7 @@ function renderScorecard() {
 }
 
 function renderHoleForm() {
+    // console.log('renderHoleForm called for hole:', currentHole); // Removed console.log
     holeSection.innerHTML = '';
     if (currentHole > maxHoles) {
         holeSection.innerHTML = '<p>All holes submitted. <button onclick="location.reload()">Restart</button></p>';
@@ -282,11 +246,12 @@ function renderHoleForm() {
 }
 
 async function handleHoleSubmit() {
+    // console.log('handleHoleSubmit called'); // Removed console.log
     const player = playerSelect.value === 'Other'
         ? document.getElementById('otherPlayer').value.trim()
         : playerSelect.value;
     const week = parseInt(weekInput.value);
-    const scoreInput = holeSection.querySelector('input[name="score']:checked');
+    const scoreInput = holeSection.querySelector('input[name="score"]:checked');
     if (!player || !week || !scoreInput) return alert('Fill in all fields');
 
     let score = scoreInput.value;
@@ -299,8 +264,10 @@ async function handleHoleSubmit() {
     try {
         const { error } = await client.from('Submissions').insert([submission]);
         if (error) throw error;
+        // console.log('Submission successful for hole', currentHole); // Removed console.log
     } catch (err) {
         alert('Error submitting: ' + err.message);
+        // console.error('Submission error:', err); // Removed console.log
         return;
     }
 
@@ -332,6 +299,7 @@ async function handleHoleSubmit() {
 }
 
 function listenToRecap(weekNumber) {
+    // console.log('listenToRecap called for week:', weekNumber); // Removed console.log
     if (currentRecapChannel) {
         client.removeChannel(currentRecapChannel);
         currentRecapChannel = null;
@@ -348,6 +316,7 @@ function listenToRecap(weekNumber) {
             } else {
                 document.getElementById('recap').textContent = '';
             }
+            // console.log('Recap initial fetch result:', data); // Removed console.log
         })
         .catch(err => console.error('Recap initial fetch error:', err));
 
@@ -359,13 +328,15 @@ function listenToRecap(weekNumber) {
             table: 'recaps',
             filter: `week_number=eq.${weekNumber}`
         }, payload => {
+            // console.log('Recap real-time update received:', payload); // Removed console.log
             document.getElementById('recap').textContent = payload.new.recap_text;
         })
-        .subscribe()
+        .subscribe(() => { /* console.log('Recap channel subscribed:', channelName) */ }) // Removed console.log
         .catch(err => console.error('Recap channel subscription error:', err));
 }
 
 function listenToLiveScores(weekNumber) {
+    // console.log('listenToLiveScores called for week:', weekNumber); // Removed console.log
     if (currentLiveScoresChannel) {
         client.removeChannel(currentLiveScoresChannel);
         currentLiveScoresChannel = null;
@@ -377,14 +348,16 @@ function listenToLiveScores(weekNumber) {
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` },
             () => {
+                // console.log('Live scores real-time update received'); // Removed console.log
                 renderLiveSummary();
             }
         )
-        .subscribe()
+        .subscribe(() => { /* console.log('Live scores channel subscribed:', channelName) */ }) // Removed console.log
         .catch(err => console.error('Live scores channel subscription error:', err));
 }
 
 function loadAndListenRecap() {
+    // console.log('loadAndListenRecap called'); // Removed console.log
     const week = parseInt(weekInput.value);
 
     if (!isNaN(week) && week > 0) {
@@ -396,10 +369,12 @@ function loadAndListenRecap() {
             const finalWeekInput = document.getElementById('finalWeek');
             if (finalWeekInput) {
                 finalWeekInput.value = week;
+                // console.log('Admin finalWeek input updated to:', week); // Removed console.log
             }
         }
 
     } else {
+        // console.log('Week is not a valid number or not set.'); // Removed console.log
         document.getElementById('recap').textContent = '';
         summary.innerHTML = '';
         if (currentRecapChannel) {
@@ -414,9 +389,14 @@ function loadAndListenRecap() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // console.log('DOMContentLoaded triggered'); // Removed console.log
     const today = new Date();
+    // console.log('Current year:', today.getFullYear()); // Removed console.log
+    // console.log('weekInput element:', weekInput); // Removed console.log
+
 
     if (today.getFullYear() === 2025) {
+        // console.log('Default week logic running for year 2025.'); // Removed console.log
         const currentDay = today.getDay();
         const currentMonday = new Date(today);
         
@@ -432,7 +412,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const diffWeeks = Math.round(diffMs / msPerWeek);
 
         const defaultCalculatedWeek = 9 + diffWeeks;
+        // console.log('Calculated default week:', defaultCalculatedWeek); // Removed console.log
         weekInput.value = defaultCalculatedWeek;
+        // console.log('Week input value set to:', weekInput.value); // Removed console.log
+    } else {
+        // console.log('Default week logic NOT running. Year is not 2025.'); // Removed console.log
     }
 
     loadAndListenRecap();
@@ -441,24 +425,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 startRoundButton.addEventListener('click', () => {
+    // console.log('Start Round button clicked!'); // Removed console.log
     const player = playerSelect.value;
     const week = weekInput.value;
+    // console.log('Player selected:', player, 'Week selected:', week); // Removed console.log
+
     if (!player || !week) return alert('Please select a player and enter a week number first.');
 
     startRoundButton.classList.add('hidden');
     playerSelect.disabled = true;
     weekInput.disabled = true;
+    // console.log('Player/Week inputs disabled.'); // Removed console.log
 
     currentHole = 1;
     for (let i = 1; i <= maxHoles; i++) delete scores[i];
     renderScorecard();
     renderHoleForm();
+    // console.log('Render scorecard and hole form called.'); // Removed console.log
 });
 
 function renderLiveSummary() {
+    // console.log('renderLiveSummary called'); // Removed console.log
     const week = parseInt(weekInput.value);
     if (!week) {
         summary.innerHTML = '';
+        // console.log('No week set for summary, clearing summary area.'); // Removed console.log
         return;
     }
     client
@@ -468,8 +459,10 @@ function renderLiveSummary() {
         .then(({ data, error }) => {
             if (error || !data) {
                 summary.innerHTML = '<p>Error loading summary</p>';
+                // console.error('Error loading summary:', error); // Removed console.log
                 return;
             }
+            // console.log('Summary data fetched:', data); // Removed console.log
 
             const holeStats = {};
             for (let i = 1; i <= 9; i++) {
@@ -490,11 +483,13 @@ function renderLiveSummary() {
             }
             html += '</table>';
             summary.innerHTML = html;
+            // console.log('Live summary rendered.'); // Removed console.log
         })
         .catch(err => console.error('Error in renderLiveSummary fetch:', err));
 }
 
 document.getElementById('player').addEventListener('change', () => {
+    // console.log('Player select change detected for admin panel logic.'); // Removed console.log
     const player = playerSelect.value;
     const week = weekInput.value || 1;
 
@@ -516,15 +511,18 @@ document.getElementById('player').addEventListener('change', () => {
         if (!isNaN(parseInt(week)) && parseInt(week) > 0) {
             listenToRecap(parseInt(week));
         }
+        // console.log('Admin panel shown and initialized.'); // Removed console.log
 
     } else {
         adminPanel.classList.add("hidden");
         loadAndListenRecap();
+        // console.log('Admin panel hidden.'); // Removed console.log
     }
 });
 
 
 async function finalizeScores() {
+    // console.log('finalizeScores called'); // Removed console.log
     const week = parseInt(document.getElementById('finalWeek').value);
     if (!week) return alert('Enter a week number.');
 
@@ -538,6 +536,7 @@ async function finalizeScores() {
 
         if (!data || data.length === 0) {
             document.getElementById('adminResults').textContent = 'Error or no data for this week.';
+            // console.warn('No submission data for week', week); // Removed console.log
             return;
         }
 
@@ -587,7 +586,7 @@ async function finalizeScores() {
                 const amount = (shares[player] * valuePerShare).toFixed(2);
                 recap += `${player}: $${amount}\n`;
             }
-        } // THIS IS THE MISSING CLOSING BRACE THAT WAS CAUSING THE SYNTAX ERROR
+        }
 
         const ctp = data.filter(d => d.hole === 9 && d.ctp);
         if (ctp.length > 0) {
@@ -599,13 +598,16 @@ async function finalizeScores() {
 
         document.getElementById('adminResults').textContent = recap;
         await client.from('recaps').upsert({ week_number: week, recap_text: recap });
+        // console.log('Finalization and recap upsert successful.'); // Removed console.log
+
     } catch (err) {
         document.getElementById('adminResults').textContent = 'Error finalizing: ' + err.message;
-        console.error('Finalization error:', err);
+        // console.error('Finalization error:', err); // Removed console.log
     }
 }
 
 async function clearWeek() {
+    // console.log('clearWeek called'); // Removed console.log
     const week = parseInt(document.getElementById('finalWeek').value);
     if (!confirm(`Clear all submissions for week ${week}? This action cannot be undone.`)) return;
 
@@ -624,9 +626,10 @@ async function clearWeek() {
 
         document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
         document.getElementById('recap').textContent = '';
+        // console.log(`Week ${week} cleared successfully.`); // Removed console.log
     } catch (err) {
         document.getElementById('adminResults').textContent = 'Error clearing week: ' + err.message;
-        console.error('Clear week error:', err);
+        // console.error('Clear week error:', err); // Removed console.log
     }
 }
 
