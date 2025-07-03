@@ -587,7 +587,7 @@ async function finalizeScores() {
                 const amount = (shares[player] * valuePerShare).toFixed(2);
                 recap += `${player}: $${amount}\n`;
             }
-        }
+        } // THIS IS THE MISSING CLOSING BRACE THAT WAS CAUSING THE SYNTAX ERROR
 
         const ctp = data.filter(d => d.hole === 9 && d.ctp);
         if (ctp.length > 0) {
@@ -598,6 +598,7 @@ async function finalizeScores() {
         }
 
         document.getElementById('adminResults').textContent = recap;
+        await client.from('recaps').upsert({ week_number: week, recap_text: recap });
     } catch (err) {
         document.getElementById('adminResults').textContent = 'Error finalizing: ' + err.message;
         console.error('Finalization error:', err);
