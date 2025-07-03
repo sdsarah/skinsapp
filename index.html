@@ -162,7 +162,8 @@ const holeSection = document.getElementById('holeSection');
 const scorecard = document.getElementById('scorecard');
 const summary = document.getElementById('summary');
 const adminPanel = document.getElementById('adminTools');
-const startRoundButton = document('startRound');
+// CORRECTED: This line was causing the issue. Changed 'document' to 'document.getElementById'
+const startRoundButton = document.getElementById('startRound');
 const playerSelect = document.getElementById('player');
 const weekInput = document.getElementById('week');
 
