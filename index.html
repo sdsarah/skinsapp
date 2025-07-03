@@ -5,19 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Palacio Skins Scorecard</title>
 <style>
-/* NEW: Google Font Import */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+/* UPDATED: Google Font Import for Montserrat */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 
 body {
-    /* UPDATED: Modern font, subtle background color, darker text */
-    font-family: 'Inter', Arial, sans-serif;
+    /* UPDATED: Font family to Montserrat, keeping other styles */
+    font-family: 'Montserrat', 'Inter', Arial, sans-serif; /* Montserrat as primary, Inter as fallback */
     margin: 1rem;
     max-width: 700px;
     background-color: #f8fbfd; /* Very subtle light blue-grey */
     color: #333; /* Darker default text for better contrast */
 }
 
-/* NEW: Heading colors for a touch of accent */
+/* Heading colors for a touch of accent */
 h1, h3 {
     color: #2c3e50; /* A darker, slightly desaturated blue-grey */
 }
@@ -26,7 +26,6 @@ label, select, input { display: block; margin: 0.5rem 0; }
 .score-options input[type="radio"] { margin-right: 0.3rem; }
 .score-options label { margin: 0.3rem 0; padding: 0.3rem; border: 1px solid #ccc; border-radius: 4px; background: #f3f3f3; cursor: pointer; }
 .score-options input[type="radio"]:checked + label {
-    /* Adjusted existing light blue to fit new palette */
     background-color: #d6eaff; /* Slightly brighter light blue */
     border-color: #007bff; /* Keep original strong blue for checked state */
 }
@@ -34,23 +33,23 @@ label, select, input { display: block; margin: 0.5rem 0; }
 table { width: 100%; margin-top: 1rem; border-collapse: collapse; }
 th, td { border: 1px solid #ccc; padding: 0.4rem; text-align: center; }
 
-/* NEW: Table header background for a bit of color */
+/* Table header background for a bit of color */
 th {
     background-color: #e9f5f9; /* Very light blue background for table headers */
     color: #2c3e50; /* Match heading color */
 }
 
 .admin { background: #f9f9f9; padding: 1rem; margin-top: 1rem; border: 1px solid #ccc; }
-#recap:empty { display: none; } /* This rule is good, hides if no text */
+#recap:empty { display: none; }
 
-/* NEW: Style for highlighting current hole */
+/* Style for highlighting current hole */
 .current-hole {
     background-color: #e0f2f7; /* Light blue background */
     font-weight: bold;
     border-color: #007bff; /* Stronger border */
 }
 
-/* NEW: Modern button styles */
+/* Modern button styles */
 button {
     background-color: #3498db; /* A standard soft blue */
     color: white;
@@ -65,6 +64,31 @@ button {
 button:hover {
     background-color: #2980b9; /* Darker blue on hover */
 }
+
+/* Celebration Message Styles */
+#celebrationMessage {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #4CAF50;
+    color: white;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-align: center;
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity 0.5s ease-out;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    pointer-events: none;
+}
+
+#celebrationMessage.hidden {
+    opacity: 0;
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -122,6 +146,8 @@ button:hover {
 <div id="adminTools" class="admin hidden"></div>
 <pre id="recap" style="margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
 
+<div id="celebrationMessage" class="hidden"></div>
+
 <script>
 const SUPABASE_URL = 'https://htsipaxeqaumxntsrsvx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88';
@@ -136,9 +162,9 @@ const holeSection = document.getElementById('holeSection');
 const scorecard = document.getElementById('scorecard');
 const summary = document.getElementById('summary');
 const adminPanel = document.getElementById('adminTools');
-const startRoundButton = document.getElementById('startRound');
-const playerSelect = document.getElementById('player'); // Get player select once
-const weekInput = document.getElementById('week'); // Get week input once
+const startRoundButton = document('startRound');
+const playerSelect = document.getElementById('player');
+const weekInput = document.getElementById('week');
 
 // --- Global variables to manage Supabase channel subscriptions ---
 let currentRecapChannel = null;
@@ -147,7 +173,6 @@ let currentLiveScoresChannel = null;
 playerSelect.addEventListener('change', (e) => {
     const otherPlayerInput = document.getElementById('otherPlayer');
     otherPlayerInput.classList.toggle('hidden', e.target.value !== 'Other');
-    // NEW: Auto-focus "Other" input
     if (e.target.value === 'Other') {
         otherPlayerInput.focus();
     }
@@ -160,7 +185,6 @@ weekInput.addEventListener('change', loadAndListenRecap);
 function renderScorecard() {
     let html = '<h3>Your Scorecard</h3>';
     html += '<table><tr><th>Hole</th>';
-    // Add classes for highlighting
     for (let i = 1; i <= maxHoles; i++) {
         html += `<th class="${i === currentHole ? 'current-hole' : ''}">${i}</th>`;
     }
@@ -183,10 +207,12 @@ function renderHoleForm() {
         <h3>Hole ${currentHole}</h3>
         <div class="score-options">
             <label><input type="radio" name="score" value="1"> Hole-in-One</label>
-            <label><input type="radio" name="score" value="2"> Birdie</label>
-            <div id="chipInContainer" class="hidden">
-                <label><input type="checkbox" id="chipIn"> Chip-in</label>
-            </div>
+            <label>
+                <input type="radio" name="score" value="2"> Birdie
+                <span id="chipInOption" class="hidden">
+                    <input type="checkbox" id="chipIn"> Chip-in
+                </span>
+            </label>
             <label><input type="radio" name="score" value="3+"> Par or Worse</label>
         </div>
         <div id="ctpContainer" class="${currentHole === 9 ? '' : 'hidden'}">
@@ -196,10 +222,12 @@ function renderHoleForm() {
     `;
     holeSection.appendChild(div);
 
+    const chipInOptionSpan = document.getElementById('chipInOption');
     const birdieRadio = div.querySelector('input[value="2"]');
-    birdieRadio.addEventListener('change', () => document.getElementById('chipInContainer').classList.remove('hidden'));
+
+    birdieRadio.addEventListener('change', () => chipInOptionSpan.classList.remove('hidden'));
     div.querySelectorAll('input[name="score"]').forEach(input => {
-        if (input.value !== '2') input.addEventListener('change', () => document.getElementById('chipInContainer').classList.add('hidden'));
+        if (input.value !== '2') input.addEventListener('change', () => chipInOptionSpan.classList.add('hidden'));
     });
 }
 
@@ -232,6 +260,26 @@ async function handleHoleSubmit() {
     renderHoleForm();
 
     renderLiveSummary();
+
+    // Celebration Message Logic
+    const celebrationMessageDiv = document.getElementById('celebrationMessage');
+    let messageText = '';
+
+    if (score === '1') {
+        messageText = '🎉 ACE! Hole-in-One! 🎉';
+    } else if (score === '2') {
+        messageText = '🐦 Birdie!';
+    } else if (score === '2*') {
+        messageText = '✨ Chip-in Birdie!';
+    }
+
+    if (messageText) {
+        celebrationMessageDiv.textContent = messageText;
+        celebrationMessageDiv.classList.remove('hidden');
+        setTimeout(() => {
+            celebrationMessageDiv.classList.add('hidden');
+        }, 2500); // Hide after 2.5 seconds
+    }
 }
 
 function listenToRecap(weekNumber) {
@@ -290,7 +338,6 @@ function loadAndListenRecap() {
         listenToLiveScores(week);
         renderLiveSummary();
 
-        // Update admin 'finalWeek' input if admin is selected and panel is visible
         if (["Commish", "Craig Sanger"].includes(playerSelect.value)) {
             const finalWeekInput = document.getElementById('finalWeek');
             if (finalWeekInput) {
@@ -300,7 +347,7 @@ function loadAndListenRecap() {
 
     } else {
         document.getElementById('recap').textContent = '';
-        summary.innerHTML = ''; // Changed: Now simply clears the summary if no week is selected
+        summary.innerHTML = '';
         if (currentRecapChannel) {
             client.removeChannel(currentRecapChannel);
             currentRecapChannel = null;
@@ -324,7 +371,6 @@ startRoundButton.addEventListener('click', () => {
     if (!player || !week) return alert('Please select a player and enter a week number first.');
 
     startRoundButton.classList.add('hidden');
-    // NEW: Disable player and week inputs
     playerSelect.disabled = true;
     weekInput.disabled = true;
 
@@ -337,7 +383,7 @@ startRoundButton.addEventListener('click', () => {
 function renderLiveSummary() {
     const week = parseInt(weekInput.value);
     if (!week) {
-        summary.innerHTML = ''; // Changed: Now simply clears the summary if no week is selected
+        summary.innerHTML = '';
         return;
     }
     client
