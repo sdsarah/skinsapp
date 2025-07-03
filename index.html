@@ -163,130 +163,10 @@ return;
 scores[currentHole] = score;
 renderScorecard();
 currentHole++;
-
+       
 renderLiveSummary();
-
-function listenToRecap(weekNumber) {
-      client.channel('public:Recaps')
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'Recaps',
-          filter: `week_number=eq.${weekNumber}`
-        }, payload => {
-          document.getElementById('recap').textContent = payload.new.recap_text;
-        })
-        .subscribe();
-  client
-    .from('Recaps')
-    .select('recap_text')
-    .eq('week_number', weekNumber)
-    .single()
-    .then(({ data }) => {
-      if (data && data.recap_text) {
-        document.getElementById('recap').textContent = data.recap_text;
-      }
-    });
-
-  client.channel('public:Recaps')
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'Recaps',
-      filter: `week_number=eq.${weekNumber}`
-    }, payload => {
-      document.getElementById('recap').textContent = payload.new.recap_text;
-    })
-    .subscribe();
 }
-
-function listenToLiveScores(weekNumber) {
-client.channel('public:Submissions')
-.on(
-'postgres_changes',
-{ event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` },
-() => renderLiveSummary()
-)
-.subscribe();
-}
-renderHoleForm();
-const parsedWeek = parseInt(week);
-      listenToRecap(parsedWeek);
-
-listenToLiveScores(parsedWeek);
-
-}
-
-renderHoleForm();
-
-
-startRoundButton.addEventListener('click', () => {
-const player = document.getElementById('player').value;
-const week = document.getElementById('week').value;
-if (!player || !week) return alert('Please select a player and enter a week number first.');
-startRoundButton.classList.add('hidden');
-currentHole = 1;
-for (let i = 1; i <= maxHoles; i++) delete scores[i];
-renderScorecard();
-renderHoleForm();
-});
-
-function renderLiveSummary() {
-const week = parseInt(document.getElementById('week').value);
-if (!week) return;
-client
-.from('Submissions')
-.select('*')
-.eq('week_number', week)
-.then(({ data, error }) => {
-if (error || !data) {
-summary.innerHTML = '<p>Error loading summary</p>';
-return;
-}
-
-const holeStats = {};
-for (let i = 1; i <= 9; i++) {
-holeStats[i] = { birdies: 0, chipins: 0, aces: 0 };
-}
-
-data.forEach(({ hole, score }) => {
-if (!holeStats[hole]) return;
-if (score === '1') holeStats[hole].aces++;
-else if (score === '2') holeStats[hole].birdies++;
-else if (score === '2*') holeStats[hole].chipins++;
-});
-
-let html = '<table><tr><th>Hole</th><th>Birdies</th><th>Chip-ins</th><th>Aces</th></tr>';
-for (let i = 1; i <= 9; i++) {
-const h = holeStats[i];
-html += `<tr><td>${i}</td><td>${h.birdies}</td><td>${h.chipins}</td><td>${h.aces}</td></tr>`;
-}
-html += '</table>';
-summary.innerHTML = html;
-});
-}
-
-renderLiveSummary();
-
-
-document.getElementById('player').addEventListener('change', () => {
-const player = document.getElementById('player').value;
-const weekInput = document.getElementById('week');
-const week = weekInput.value || 1;
-if (["Commish", "Craig Sanger"].includes(player)) {
-adminPanel.classList.remove("hidden");
-adminPanel.innerHTML = `
-     <h3>Admin Tools</h3>
-     <label>Week to Finalize: <input type="number" id="finalWeek" min="1" value="${week}" /></label>
-     <button onclick="finalizeScores()">💰 Finalize Scores & Calculate Payouts</button>
-     <button onclick="clearWeek()">🗑 Clear Week</button>
-     <pre id="adminResults">Admin Results will appear here.</pre>
-   `;
-} else {
-adminPanel.classList.add("hidden");
-}
-});
-
+       
 async function finalizeScores() {
 const week = parseInt(document.getElementById('finalWeek').value);
 if (!week) return alert('Enter a week number.');
@@ -386,6 +266,130 @@ document.getElementById('adminResults').textContent = 'Error clearing week.';
 document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
 }
 }
+const style = document.createElement('style');
+style.innerHTML = `
+  td.winner {
+    background-color: #d4edda;
+    font-weight: bold;
+  }
+`;
+document.head.appendChild(style);
+function listenToRecap(weekNumber) {
+  client
+    .channel('public:Recaps')
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'Recaps',
+      filter: `week_number=eq.${weekNumber}`
+    }, payload => {
+      document.getElementById('recap').textContent = payload.new.recap_text;
+      renderLiveSummary();
+    })
+    .subscribe();
+
+  client
+    .from('Recaps')
+    .select('recap_text')
+    .eq('week_number', weekNumber)
+    .single()
+    .then(({ data }) => {
+      if (data && data.recap_text) {
+        document.getElementById('recap').textContent = data.recap_text;
+      }
+    });
+}
+
+function listenToLiveScores(weekNumber) {
+  client.channel('public:Submissions')
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'Submissions',
+      filter: `week_number=eq.${weekNumber}`
+    }, () => renderLiveSummary())
+    .subscribe();
+}
+
+function renderLiveSummary() {
+  const week = parseInt(document.getElementById('week').value);
+  if (!week) return;
+  client
+    .from('Submissions')
+    .select('*')
+    .eq('week_number', week)
+    .then(({ data, error }) => {
+      if (error || !data) {
+        summary.innerHTML = '<p>Error loading summary</p>';
+        return;
+      }
+
+      const holeStats = {};
+      for (let i = 1; i <= 9; i++) {
+        holeStats[i] = { birdies: [], chipins: [], aces: [], winner: null, method: null };
+      }
+
+      data.forEach(({ hole, score, player }) => {
+        if (!holeStats[hole]) return;
+        if (score === '1') holeStats[hole].aces.push(player);
+        else if (score === '2') holeStats[hole].birdies.push(player);
+        else if (score === '2*') holeStats[hole].chipins.push(player);
+      });
+
+      for (let i = 1; i <= 9; i++) {
+        const h = holeStats[i];
+        if (h.aces.length) {
+          h.winner = h.aces.join(', ');
+          h.method = 'Ace';
+        } else if (h.birdies.length === 1 && h.chipins.length === 0) {
+          h.winner = h.birdies[0];
+          h.method = 'Birdie';
+        } else if (h.chipins.length === 1 && h.birdies.length === 0) {
+          h.winner = h.chipins[0];
+          h.method = 'Chip-in';
+        }
+      }
+
+      let html = '<table><tr><th>Hole</th><th>Birdies</th><th>Chip-ins</th><th>Aces</th><th>Winner</th><th>Method</th></tr>';
+      for (let i = 1; i <= 9; i++) {
+        const h = holeStats[i];
+        html += `<tr>
+          <td>${i}</td>
+          <td>${h.birdies.length}</td>
+          <td>${h.chipins.length}</td>
+          <td>${h.aces.length}</td>
+          <td class="${h.winner ? 'winner' : ''}">${h.winner || '-'}</td>
+          <td>${h.method || '-'}</td>
+        </tr>`;
+      }
+      html += '</table>';
+      summary.innerHTML = html;
+    });
+}
+
+startRoundButton.addEventListener('click', () => {
+  const player = document.getElementById('player').value;
+  const week = document.getElementById('week').value;
+  if (!player || !week) return alert('Please select a player and enter a week number first.');
+  startRoundButton.classList.add('hidden');
+  currentHole = 1;
+  for (let i = 1; i <= maxHoles; i++) delete scores[i];
+  renderScorecard();
+  renderHoleForm();
+
+  const parsedWeek = parseInt(week);
+  listenToRecap(parsedWeek);
+  listenToLiveScores(parsedWeek);
+});
+
+const style = document.createElement('style');
+style.innerHTML = `
+  td.winner {
+    background-color: #d4edda;
+    font-weight: bold;
+  }
+`;
+document.head.appendChild(style);
 
 </script>
 </body>
