@@ -17,6 +17,12 @@ body {
     color: #333; /* Darker default text for better contrast */
 }
 
+/* NEW: Apply font to form elements and buttons for consistency */
+button, input, select, textarea {
+    font-family: 'Montserrat', 'Inter', Arial, sans-serif;
+}
+
+
 /* Heading colors for a touch of accent */
 h1, h3 {
     color: #2c3e50; /* A darker, slightly desaturated blue-grey */
@@ -162,7 +168,6 @@ const holeSection = document.getElementById('holeSection');
 const scorecard = document.getElementById('scorecard');
 const summary = document.getElementById('summary');
 const adminPanel = document.getElementById('adminTools');
-// CORRECTED: This line was causing the issue. Changed 'document' to 'document.getElementById'
 const startRoundButton = document.getElementById('startRound');
 const playerSelect = document.getElementById('player');
 const weekInput = document.getElementById('week');
@@ -214,8 +219,7 @@ function renderHoleForm() {
                     <input type="checkbox" id="chipIn"> Chip-in
                 </span>
             </label>
-            <label><input type="radio" name="score" value="3+"> Par or Worse</label>
-        </div>
+            <label><input type="radio" name="score" value="3+" checked> Par or Worse</label> </div>
         <div id="ctpContainer" class="${currentHole === 9 ? '' : 'hidden'}">
             <label><input type="checkbox" id="ctp"> Closest to the Pin</label>
         </div>
@@ -482,68 +486,4 @@ async function finalizeScores() {
             const chipins = scores.filter(s => s.score === '2*');
             const aces = scores.filter(s => s.score === '1');
             if (aces.length > 0) {
-                const names = aces.map(p => p.player).join(', ');
-                recap += `Hole ${h}: Ace by ${names}\n`;
-            } else if (birdies.length === 1 && chipins.length === 0) {
-                shares[birdies[0].player] = (shares[birdies[0].player] || 0) + 1;
-                totalShares++;
-                recap += `Hole ${h}: Skin to ${birdies[0].player}\n`;
-            } else if (chipins.length === 1 && birdies.length === 0) {
-                shares[chipins[0].player] = (shares[chipins[0].player] || 0) + 2;
-                totalShares += 2;
-                recap += `Hole ${h}: Skin (chip-in) to ${chipins[0].player}\n`;
-            } else if (birdies.length > 0 || chipins.length > 0) {
-                const bNames = birdies.map(b => b.player).join(', ');
-                const cNames = chipins.map(c => c.player).join(', ');
-                let names = [];
-                if (bNames) names.push(`Birdies by ${bNames}`);
-                if (cNames) names.push(`Chip-in Birdies by ${cNames}`);
-                recap += `Hole ${h}: No skin - ${names.join(' and ')}\n`;
-            } else {
-                recap += `Hole ${h}: No action\n`;
-            }
-        }
-        const valuePerShare = totalShares > 0 ? 300 / totalShares : 0;
-        recap += `\n💸 Payouts:\n`;
-        for (const player in shares) {
-            const amount = (shares[player] * valuePerShare).toFixed(2);
-            recap += `${player}: $${amount}\n`;
-        }
-    }
-
-    const ctp = data.filter(d => d.hole === 9 && d.ctp);
-    if (ctp.length > 0) {
-        const last = ctp.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-        recap += `\n📍 CTP Winner: ${last.player} ($30)`;
-    } else {
-        recap += `\n📍 CTP Winner: Commish (default)`;
-    }
-
-    document.getElementById('adminResults').textContent = recap;
-    await client.from('recaps').upsert({ week_number: week, recap_text: recap });
-}
-
-async function clearWeek() {
-    const week = parseInt(document.getElementById('finalWeek').value);
-    if (!confirm(`Clear all submissions for week ${week}? This action cannot be undone.`)) return;
-    const { error: submissionsError } = await client
-        .from('Submissions')
-        .delete()
-        .eq('week_number', week);
-
-    const { error: recapsError } = await client
-        .from('recaps')
-        .delete()
-        .eq('week_number', week);
-
-    if (submissionsError || recapsError) {
-        document.getElementById('adminResults').textContent = 'Error clearing week: ' + (submissionsError?.message || '') + (recapsError?.message || '');
-    } else {
-        document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
-        document.getElementById('recap').textContent = '';
-    }
-}
-
-</script>
-</body>
-</html>
+                const names = aces.map(p
