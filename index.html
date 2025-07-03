@@ -101,9 +101,6 @@ button:hover {
 <body>
 <h1>Palacio Skins Scorecard</h1>
 
-<!-- MOVED: Recap section is now here, at the top -->
-<pre id="recap" style="margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
-
 <div id="scorecard"></div>
 
 <form id="scoreForm">
@@ -153,11 +150,15 @@ button:hover {
 
 <div id="summary"></div>
 <div id="adminTools" class="admin hidden"></div>
+<pre id="recap" style="margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
 
 
 <div id="celebrationMessage" class="hidden"></div>
 
 <script>
+// NEW: Test alert to see if script is running at all
+alert("Script is running!");
+
 const SUPABASE_URL = 'https://htsipaxeqaumxntsrsvx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0c2lwYXhlcWF1bXhudHNyc3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjU1NDQsImV4cCI6MjA2NjkwMTU0NH0.AY4mcj85_xWSz2HI2A16kigH58PqAFoEDqZgULcen88';
 const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -180,6 +181,7 @@ let currentRecapChannel = null;
 let currentLiveScoresChannel = null;
 
 playerSelect.addEventListener('change', (e) => {
+    console.log('Player select changed');
     const otherPlayerInput = document.getElementById('otherPlayer');
     otherPlayerInput.classList.toggle('hidden', e.target.value !== 'Other');
     if (e.target.value === 'Other') {
@@ -188,7 +190,10 @@ playerSelect.addEventListener('change', (e) => {
     loadAndListenRecap();
 });
 
-weekInput.addEventListener('change', loadAndListenRecap);
+weekInput.addEventListener('change', () => {
+    console.log('Week input changed');
+    loadAndListenRecap();
+});
 
 
 function renderScorecard() {
@@ -206,6 +211,7 @@ function renderScorecard() {
 }
 
 function renderHoleForm() {
+    console.log('renderHoleForm called for hole:', currentHole);
     holeSection.innerHTML = '';
     if (currentHole > maxHoles) {
         holeSection.innerHTML = '<p>All holes submitted. <button onclick="location.reload()">Restart</button></p>';
@@ -241,6 +247,7 @@ function renderHoleForm() {
 }
 
 async function handleHoleSubmit() {
+    console.log('handleHoleSubmit called');
     const player = playerSelect.value === 'Other'
         ? document.getElementById('otherPlayer').value.trim()
         : playerSelect.value;
@@ -258,8 +265,10 @@ async function handleHoleSubmit() {
     try {
         const { error } = await client.from('Submissions').insert([submission]);
         if (error) throw error;
+        console.log('Submission successful for hole', currentHole);
     } catch (err) {
         alert('Error submitting: ' + err.message);
+        console.error('Submission error:', err);
         return;
     }
 
@@ -270,7 +279,6 @@ async function handleHoleSubmit() {
 
     renderLiveSummary();
 
-    // Celebration Message Logic
     const celebrationMessageDiv = document.getElementById('celebrationMessage');
     let messageText = '';
 
@@ -287,11 +295,12 @@ async function handleHoleSubmit() {
         celebrationMessageDiv.classList.remove('hidden');
         setTimeout(() => {
             celebrationMessageDiv.classList.add('hidden');
-        }, 2500); // Hide after 2.5 seconds
+        }, 2500);
     }
 }
 
 function listenToRecap(weekNumber) {
+    console.log('listenToRecap called for week:', weekNumber);
     if (currentRecapChannel) {
         client.removeChannel(currentRecapChannel);
         currentRecapChannel = null;
@@ -308,7 +317,9 @@ function listenToRecap(weekNumber) {
             } else {
                 document.getElementById('recap').textContent = '';
             }
-        });
+            console.log('Recap initial fetch result:', data);
+        })
+        .catch(err => console.error('Recap initial fetch error:', err));
 
     const channelName = `recap_week_${weekNumber}`;
     currentRecapChannel = client.channel(channelName)
@@ -318,12 +329,15 @@ function listenToRecap(weekNumber) {
             table: 'recaps',
             filter: `week_number=eq.${weekNumber}`
         }, payload => {
+            console.log('Recap real-time update received:', payload);
             document.getElementById('recap').textContent = payload.new.recap_text;
         })
-        .subscribe();
+        .subscribe(() => console.log('Recap channel subscribed:', channelName))
+        .catch(err => console.error('Recap channel subscription error:', err));
 }
 
 function listenToLiveScores(weekNumber) {
+    console.log('listenToLiveScores called for week:', weekNumber);
     if (currentLiveScoresChannel) {
         client.removeChannel(currentLiveScoresChannel);
         currentLiveScoresChannel = null;
@@ -334,12 +348,17 @@ function listenToLiveScores(weekNumber) {
         .on(
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` },
-            () => renderLiveSummary()
+            () => {
+                console.log('Live scores real-time update received');
+                renderLiveSummary();
+            }
         )
-        .subscribe();
+        .subscribe(() => console.log('Live scores channel subscribed:', channelName))
+        .catch(err => console.error('Live scores channel subscription error:', err));
 }
 
 function loadAndListenRecap() {
+    console.log('loadAndListenRecap called');
     const week = parseInt(weekInput.value);
 
     if (!isNaN(week) && week > 0) {
@@ -351,10 +370,12 @@ function loadAndListenRecap() {
             const finalWeekInput = document.getElementById('finalWeek');
             if (finalWeekInput) {
                 finalWeekInput.value = week;
+                console.log('Admin finalWeek input updated to:', week);
             }
         }
 
     } else {
+        console.log('Week is not a valid number or not set.');
         document.getElementById('recap').textContent = '';
         summary.innerHTML = '';
         if (currentRecapChannel) {
@@ -369,27 +390,34 @@ function loadAndListenRecap() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded triggered');
     const today = new Date();
+    console.log('Current year:', today.getFullYear());
+    console.log('weekInput element:', weekInput);
 
-    // Only apply default week logic if the current year is 2025
+
     if (today.getFullYear() === 2025) {
-        const currentDay = today.getDay(); // 0 (Sunday) to 6 (Saturday)
-        const currentMonday = new Date(today); // Create a copy
-
-        // Adjust to the current week's Monday (the start of your defined week)
-        const daysToSubtract = currentDay === 0 ? 6 : currentDay - 1; // If Sunday (0), go back 6 days; otherwise, go back (day - 1) days
+        console.log('Default week logic running for year 2025.');
+        const currentDay = today.getDay();
+        const currentMonday = new Date(today);
+        
+        const daysToSubtract = currentDay === 0 ? 6 : currentDay - 1;
         currentMonday.setDate(today.getDate() - daysToSubtract);
-        currentMonday.setHours(0, 0, 0, 0); // Normalize to start of day
+        currentMonday.setHours(0, 0, 0, 0);
 
-        const referenceDate = new Date('2025-06-30T00:00:00'); // Week 9 reference (June 30, 2025 was a Monday)
-        referenceDate.setHours(0,0,0,0); // Normalize reference date to start of day
+        const referenceDate = new Date('2025-06-30T00:00:00');
+        referenceDate.setHours(0,0,0,0);
 
         const msPerWeek = 1000 * 60 * 60 * 24 * 7;
         const diffMs = currentMonday.getTime() - referenceDate.getTime();
-        const diffWeeks = Math.round(diffMs / msPerWeek); // Calculate difference in weeks
+        const diffWeeks = Math.round(diffMs / msPerWeek);
 
-        const defaultCalculatedWeek = 9 + diffWeeks; // Adjusted to Week 9
-        weekInput.value = defaultCalculatedWeek; // Set the calculated week as the default
+        const defaultCalculatedWeek = 9 + diffWeeks;
+        console.log('Calculated default week:', defaultCalculatedWeek);
+        weekInput.value = defaultCalculatedWeek;
+        console.log('Week input value set to:', weekInput.value);
+    } else {
+        console.log('Default week logic NOT running. Year is not 2025.');
     }
 
     loadAndListenRecap();
@@ -398,24 +426,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 startRoundButton.addEventListener('click', () => {
+    console.log('Start Round button clicked!');
     const player = playerSelect.value;
     const week = weekInput.value;
+    console.log('Player selected:', player, 'Week selected:', week);
+
     if (!player || !week) return alert('Please select a player and enter a week number first.');
 
     startRoundButton.classList.add('hidden');
     playerSelect.disabled = true;
     weekInput.disabled = true;
+    console.log('Player/Week inputs disabled.');
 
     currentHole = 1;
     for (let i = 1; i <= maxHoles; i++) delete scores[i];
     renderScorecard();
     renderHoleForm();
+    console.log('Render scorecard and hole form called.');
 });
 
 function renderLiveSummary() {
+    console.log('renderLiveSummary called');
     const week = parseInt(weekInput.value);
     if (!week) {
         summary.innerHTML = '';
+        console.log('No week set for summary, clearing summary area.');
         return;
     }
     client
@@ -425,8 +460,10 @@ function renderLiveSummary() {
         .then(({ data, error }) => {
             if (error || !data) {
                 summary.innerHTML = '<p>Error loading summary</p>';
+                console.error('Error loading summary:', error);
                 return;
             }
+            console.log('Summary data fetched:', data);
 
             const holeStats = {};
             for (let i = 1; i <= 9; i++) {
@@ -447,10 +484,13 @@ function renderLiveSummary() {
             }
             html += '</table>';
             summary.innerHTML = html;
-        });
+            console.log('Live summary rendered.');
+        })
+        .catch(err => console.error('Error in renderLiveSummary fetch:', err));
 }
 
 document.getElementById('player').addEventListener('change', () => {
+    console.log('Player select change detected for admin panel logic.');
     const player = playerSelect.value;
     const week = weekInput.value || 1;
 
@@ -472,34 +512,128 @@ document.getElementById('player').addEventListener('change', () => {
         if (!isNaN(parseInt(week)) && parseInt(week) > 0) {
             listenToRecap(parseInt(week));
         }
+        console.log('Admin panel shown and initialized.');
 
     } else {
         adminPanel.classList.add("hidden");
         loadAndListenRecap();
+        console.log('Admin panel hidden.');
     }
 });
 
 
 async function finalizeScores() {
+    console.log('finalizeScores called');
     const week = parseInt(document.getElementById('finalWeek').value);
     if (!week) return alert('Enter a week number.');
 
-    const { data, error } = await client
-        .from('Submissions')
-        .select('*')
-        .eq('week_number', week);
+    try {
+        const { data, error } = await client
+            .from('Submissions')
+            .select('*')
+            .eq('week_number', week);
 
-    if (error || !data || data.length === 0) {
-        document.getElementById('adminResults').textContent = 'Error or no data for this week.';
-        return;
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            document.getElementById('adminResults').textContent = 'Error or no data for this week.';
+            console.warn('No submission data for week', week);
+            return;
+        }
+
+        let recap = '';
+        const byHole = {};
+        for (let i = 1; i <= 9; i++) byHole[i] = [];
+        data.forEach(entry => byHole[entry.hole].push(entry));
+
+        const aceWinners = data.filter(d => d.score === '1');
+
+        if (aceWinners.length > 0) {
+            const names = aceWinners.map(a => a.player).join(', ');
+            recap += `🎯 Ace Mode: $300 split among ${names}\n`;
+        } else {
+            let shares = {};
+            let totalShares = 0;
+            for (let h = 1; h <= 9; h++) {
+                const scores = byHole[h];
+                const birdies = scores.filter(s => s.score === '2');
+                const chipins = scores.filter(s => s.score === '2*');
+                const aces = scores.filter(s => s.score === '1');
+                if (aces.length > 0) {
+                    const names = aces.map(p => p.player).join(', ');
+                    recap += `Hole ${h}: Ace by ${names}\n`;
+                } else if (birdies.length === 1 && chipins.length === 0) {
+                    shares[birdies[0].player] = (shares[birdies[0].player] || 0) + 1;
+                    totalShares++;
+                    recap += `Hole ${h}: Skin to ${birdies[0].player}\n`;
+                } else if (chipins.length === 1 && birdies.length === 0) {
+                    shares[chipins[0].player] = (shares[chipins[0].player] || 0) + 2;
+                    totalShares += 2;
+                    recap += `Hole ${h}: Skin (chip-in) to ${chipins[0].player}\n`;
+                } else if (birdies.length > 0 || chipins.length > 0) {
+                    const bNames = birdies.map(b => b.player).join(', ');
+                    const cNames = chipins.map(c => c.player).join(', ');
+                    let names = [];
+                    if (bNames) names.push(`Birdies by ${bNames}`);
+                    if (cNames) names.push(`Chip-in Birdies by ${cNames}`);
+                    recap += `Hole ${h}: No skin - ${names.join(' and ')}\n`;
+                } else {
+                    recap += `Hole ${h}: No action\n`;
+                }
+            }
+            const valuePerShare = totalShares > 0 ? 300 / totalShares : 0;
+            recap += `\n💸 Payouts:\n`;
+            for (const player in shares) {
+                const amount = (shares[player] * valuePerShare).toFixed(2);
+                recap += `${player}: $${amount}\n`;
+            }
+        }
+
+        const ctp = data.filter(d => d.hole === 9 && d.ctp);
+        if (ctp.length > 0) {
+            const last = ctp.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+            recap += `\n📍 CTP Winner: ${last.player} ($30)`;
+        } else {
+            recap += `\n📍 CTP Winner: Commish (default)`;
+        }
+
+        document.getElementById('adminResults').textContent = recap;
+        await client.from('recaps').upsert({ week_number: week, recap_text: recap });
+        console.log('Finalization and recap upsert successful.');
+
+    } catch (err) {
+        document.getElementById('adminResults').textContent = 'Error finalizing: ' + err.message;
+        console.error('Finalization error:', err);
     }
+}
 
-    let recap = '';
-    const byHole = {};
-    for (let i = 1; i <= 9; i++) byHole[i] = [];
-    data.forEach(entry => byHole[entry.hole].push(entry));
+async function clearWeek() {
+    console.log('clearWeek called');
+    const week = parseInt(document.getElementById('finalWeek').value);
+    if (!confirm(`Clear all submissions for week ${week}? This action cannot be undone.`)) return;
 
-    const aceWinners = data.filter(d => d.score === '1');
+    try {
+        const { error: submissionsError } = await client
+            .from('Submissions')
+            .delete()
+            .eq('week_number', week);
+        if (submissionsError) throw submissionsError;
 
-    if (aceWinners.length > 0) {
-        const names = aceWinners.map(a => a.player).join(',
+        const { error: recapsError } = await client
+            .from('recaps')
+            .delete()
+            .eq('week_number', week);
+        if (recapsError) throw recapsError;
+
+        document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
+        document.getElementById('recap').textContent = '';
+        console.log(`Week ${week} cleared successfully.`);
+    } catch (err) {
+        document.getElementById('adminResults').textContent = 'Error clearing week: ' + err.message;
+        console.error('Clear week error:', err);
+    }
+}
+
+</script>
+</body>
+</html>
