@@ -17,7 +17,7 @@ border-color: #66afe9;
 table { width: 100%; margin-top: 1rem; border-collapse: collapse; }
 th, td { border: 1px solid #ccc; padding: 0.4rem; text-align: center; }
 .admin { background: #f9f9f9; padding: 1rem; margin-top: 1rem; border: 1px solid #ccc; }
-#recap:empty { display: none; }
+#recap:empty { display: none; } /* This rule is good, hides if no text */
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -91,300 +91,371 @@ const summary = document.getElementById('summary');
 const adminPanel = document.getElementById('adminTools');
 const startRoundButton = document.getElementById('startRound');
 
+// --- Global variables to manage Supabase channel subscriptions ---
+let currentRecapChannel = null;
+let currentLiveScoresChannel = null;
+
 document.getElementById('player').addEventListener('change', (e) => {
-document.getElementById('otherPlayer').classList.toggle('hidden', e.target.value !== 'Other');
+    document.getElementById('otherPlayer').classList.toggle('hidden', e.target.value !== 'Other');
+    // Call loadAndListenRecap when player changes, as week might already be set
+    loadAndListenRecap();
 });
 
-function renderScorecard() {
-let html = '<h3>Your Scorecard</h3>';
-html += '<table><tr><th>Hole</th>';
-for (let i = 1; i <= maxHoles; i++) html += `<th>${i}</th>`;
-html += '</tr><tr><td>Score</td>';
-for (let i = 1; i <= maxHoles; i++) html += `<td>${scores[i] || '-'}</td>`;
-html += '</tr></table>';
-scorecard.innerHTML = html;
+// --- NEW: Listen for changes on the week input field ---
+document.getElementById('week').addEventListener('change', loadAndListenRecap);
+// You might also want keyup for more immediate feedback, but 'change' is fine for final selection
+// document.getElementById('week').addEventListener('keyup', loadAndListenRecap);
 
+
+function renderScorecard() {
+    let html = '<h3>Your Scorecard</h3>';
+    html += '<table><tr><th>Hole</th>';
+    for (let i = 1; i <= maxHoles; i++) html += `<th>${i}</th>`;
+    html += '</tr><tr><td>Score</td>';
+    for (let i = 1; i <= maxHoles; i++) html += `<td>${scores[i] || '-'}</td>`;
+    html += '</tr></table>';
+    scorecard.innerHTML = html;
 }
 
 function renderHoleForm() {
-holeSection.innerHTML = '';
-if (currentHole > maxHoles) {
-holeSection.innerHTML = '<p>All holes submitted. <button onclick="location.reload()">Restart</button></p>';
-return;
-}
-const div = document.createElement('div');
-div.innerHTML = `
-       <h3>Hole ${currentHole}</h3>
-       <div class="score-options">
-         <label><input type="radio" name="score" value="1"> Hole-in-One</label>
-         <label><input type="radio" name="score" value="2"> Birdie</label>
-         <div id="chipInContainer" class="hidden">
-           <label><input type="checkbox" id="chipIn"> Chip-in</label>
-         </div>
-         <label><input type="radio" name="score" value="3+"> Par or Worse</label>
-       </div>
-       <div id="ctpContainer" class="${currentHole === 9 ? '' : 'hidden'}">
-         <label><input type="checkbox" id="ctp"> Closest to the Pin</label>
-       </div>
-       <button type="button" onclick="handleHoleSubmit()">Submit Hole</button>
-     `;
-holeSection.appendChild(div);
+    holeSection.innerHTML = '';
+    if (currentHole > maxHoles) {
+        holeSection.innerHTML = '<p>All holes submitted. <button onclick="location.reload()">Restart</button></p>';
+        return;
+    }
+    const div = document.createElement('div');
+    div.innerHTML = `
+        <h3>Hole ${currentHole}</h3>
+        <div class="score-options">
+            <label><input type="radio" name="score" value="1"> Hole-in-One</label>
+            <label><input type="radio" name="score" value="2"> Birdie</label>
+            <div id="chipInContainer" class="hidden">
+                <label><input type="checkbox" id="chipIn"> Chip-in</label>
+            </div>
+            <label><input type="radio" name="score" value="3+"> Par or Worse</label>
+        </div>
+        <div id="ctpContainer" class="${currentHole === 9 ? '' : 'hidden'}">
+            <label><input type="checkbox" id="ctp"> Closest to the Pin</label>
+        </div>
+        <button type="button" onclick="handleHoleSubmit()">Submit Hole</button>
+    `;
+    holeSection.appendChild(div);
 
-const birdieRadio = div.querySelector('input[value="2"]');
-birdieRadio.addEventListener('change', () => document.getElementById('chipInContainer').classList.remove('hidden'));
-div.querySelectorAll('input[name="score"]').forEach(input => {
-if (input.value !== '2') input.addEventListener('change', () => document.getElementById('chipInContainer').classList.add('hidden'));
-});
+    const birdieRadio = div.querySelector('input[value="2"]');
+    birdieRadio.addEventListener('change', () => document.getElementById('chipInContainer').classList.remove('hidden'));
+    div.querySelectorAll('input[name="score"]').forEach(input => {
+        if (input.value !== '2') input.addEventListener('change', () => document.getElementById('chipInContainer').classList.add('hidden'));
+    });
 }
 
 async function handleHoleSubmit() {
-const player = document.getElementById('player').value === 'Other'
-? document.getElementById('otherPlayer').value.trim()
-: document.getElementById('player').value;
-const week = parseInt(document.getElementById('week').value);
-const scoreInput = holeSection.querySelector('input[name="score"]:checked');
-if (!player || !week || !scoreInput) return alert('Fill in all fields');
+    const player = document.getElementById('player').value === 'Other'
+        ? document.getElementById('otherPlayer').value.trim()
+        : document.getElementById('player').value;
+    const week = parseInt(document.getElementById('week').value);
+    const scoreInput = holeSection.querySelector('input[name="score"]:checked');
+    if (!player || !week || !scoreInput) return alert('Fill in all fields');
 
-let score = scoreInput.value;
-const chipIn = document.getElementById('chipIn')?.checked;
-if (score === '2' && chipIn) score = '2*';
-const ctp = document.getElementById('ctp')?.checked || false;
+    let score = scoreInput.value;
+    const chipIn = document.getElementById('chipIn')?.checked;
+    if (score === '2' && chipIn) score = '2*';
+    const ctp = document.getElementById('ctp')?.checked || false;
 
-const submission = { player, week_number: week, hole: currentHole, score, ctp };
+    const submission = { player, week_number: week, hole: currentHole, score, ctp };
 
-try {
-const { error } = await client.from('Submissions').insert([submission]);
-if (error) throw error;
-} catch (err) {
-alert('Error submitting: ' + err.message);
-return;
+    try {
+        const { error } = await client.from('Submissions').insert([submission]);
+        if (error) throw error;
+    } catch (err) {
+        alert('Error submitting: ' + err.message);
+        return;
+    }
+
+    scores[currentHole] = score;
+    renderScorecard();
+    currentHole++;
+    renderHoleForm(); // Render next hole or completion message
+
+    // Summary and recap are handled by their respective change listeners
+    // on week/player selection and the real-time listeners.
+    renderLiveSummary(); // Update summary based on new submission
 }
 
-scores[currentHole] = score;
-renderScorecard();
-currentHole++;
-
-renderLiveSummary();
-
+// --- MODIFIED: listenToRecap function to manage channels and fetch initial data ---
 function listenToRecap(weekNumber) {
-      client.channel('public:Recaps')
+    // Unsubscribe from previous recap channel if it exists
+    if (currentRecapChannel) {
+        client.removeChannel(currentRecapChannel);
+        currentRecapChannel = null; // Clear the reference
+    }
+
+    // Attempt to fetch existing recap when the function is called
+    client
+        .from('Recaps')
+        .select('recap_text')
+        .eq('week_number', weekNumber)
+        .single()
+        .then(({ data }) => {
+            if (data && data.recap_text) {
+                document.getElementById('recap').textContent = data.recap_text;
+            } else {
+                // Clear recap if no data or invalid week
+                document.getElementById('recap').textContent = '';
+            }
+        });
+
+    // Set up real-time listener for future inserts/updates for the current week
+    const channelName = `recap_week_${weekNumber}`;
+    currentRecapChannel = client.channel(channelName)
         .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'Recaps',
-          filter: `week_number=eq.${weekNumber}`
+            event: '*', // Listen for INSERT or UPDATE events
+            schema: 'public',
+            table: 'Recaps',
+            filter: `week_number=eq.${weekNumber}`
         }, payload => {
-          document.getElementById('recap').textContent = payload.new.recap_text;
+            // Update recap text on any change (insert/update)
+            document.getElementById('recap').textContent = payload.new.recap_text;
         })
         .subscribe();
-  client
-    .from('Recaps')
-    .select('recap_text')
-    .eq('week_number', weekNumber)
-    .single()
-    .then(({ data }) => {
-      if (data && data.recap_text) {
-        document.getElementById('recap').textContent = data.recap_text;
-      }
-    });
-
-  client.channel('public:Recaps')
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'Recaps',
-      filter: `week_number=eq.${weekNumber}`
-    }, payload => {
-      document.getElementById('recap').textContent = payload.new.recap_text;
-    })
-    .subscribe();
 }
 
+// --- MODIFIED: listenToLiveScores function to manage channels ---
 function listenToLiveScores(weekNumber) {
-client.channel('public:Submissions')
-.on(
-'postgres_changes',
-{ event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` },
-() => renderLiveSummary()
-)
-.subscribe();
+    // Unsubscribe from previous live scores channel if it exists
+    if (currentLiveScoresChannel) {
+        client.removeChannel(currentLiveScoresChannel);
+        currentLiveScoresChannel = null; // Clear the reference
+    }
+
+    // Set up real-time listener for current week submissions
+    const channelName = `submissions_week_${weekNumber}`;
+    currentLiveScoresChannel = client.channel(channelName)
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` },
+            () => renderLiveSummary()
+        )
+        .subscribe();
 }
-renderHoleForm();
-const parsedWeek = parseInt(week);
-      listenToRecap(parsedWeek);
 
-listenToLiveScores(parsedWeek);
-
+// --- NEW: Helper function to consolidate loading logic for week-dependent data ---
+function loadAndListenRecap() {
+    const weekInput = document.getElementById('week');
+    const week = parseInt(weekInput.value);
+    if (!isNaN(week) && week > 0) {
+        listenToRecap(week); // Load recap and set up listener
+        listenToLiveScores(week); // Load live scores and set up listener
+        renderLiveSummary(); // Also render summary immediately
+    } else {
+        // If week is not valid, clear recap and summary, and unsubscribe
+        document.getElementById('recap').textContent = '';
+        summary.innerHTML = '';
+        if (currentRecapChannel) {
+            client.removeChannel(currentRecapChannel);
+            currentRecapChannel = null;
+        }
+        if (currentLiveScoresChannel) {
+            client.removeChannel(currentLiveScoresChannel);
+            currentLiveScoresChannel = null;
+        }
+    }
 }
 
-renderHoleForm();
+
+// Initial setup when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    // If there's a pre-filled week or player, try to load data
+    loadAndListenRecap(); // This will handle initial loading for existing week/player values
+    renderLiveSummary(); // Ensure summary is rendered on load
+});
 
 
 startRoundButton.addEventListener('click', () => {
-const player = document.getElementById('player').value;
-const week = document.getElementById('week').value;
-if (!player || !week) return alert('Please select a player and enter a week number first.');
-startRoundButton.classList.add('hidden');
-currentHole = 1;
-for (let i = 1; i <= maxHoles; i++) delete scores[i];
-renderScorecard();
-renderHoleForm();
+    const player = document.getElementById('player').value;
+    const week = document.getElementById('week').value;
+    if (!player || !week) return alert('Please select a player and enter a week number first.');
+    startRoundButton.classList.add('hidden');
+    currentHole = 1;
+    for (let i = 1; i <= maxHoles; i++) delete scores[i];
+    renderScorecard();
+    renderHoleForm();
+    // No need to call listenToRecap/listenToLiveScores here directly,
+    // as loadAndListenRecap is already tied to the 'week' and 'player' change events.
+    // The initial call on DOMContentLoaded or subsequent changes will handle it.
 });
 
 function renderLiveSummary() {
-const week = parseInt(document.getElementById('week').value);
-if (!week) return;
-client
-.from('Submissions')
-.select('*')
-.eq('week_number', week)
-.then(({ data, error }) => {
-if (error || !data) {
-summary.innerHTML = '<p>Error loading summary</p>';
-return;
+    const week = parseInt(document.getElementById('week').value);
+    if (!week) {
+        summary.innerHTML = '<p>Please enter a week number to see live summary.</p>';
+        return;
+    }
+    client
+        .from('Submissions')
+        .select('*')
+        .eq('week_number', week)
+        .then(({ data, error }) => {
+            if (error || !data) {
+                summary.innerHTML = '<p>Error loading summary</p>';
+                return;
+            }
+
+            const holeStats = {};
+            for (let i = 1; i <= 9; i++) {
+                holeStats[i] = { birdies: 0, chipins: 0, aces: 0 };
+            }
+
+            data.forEach(({ hole, score }) => {
+                if (!holeStats[hole]) return;
+                if (score === '1') holeStats[hole].aces++;
+                else if (score === '2') holeStats[hole].birdies++;
+                else if (score === '2*') holeStats[hole].chipins++;
+            });
+
+            let html = '<table><tr><th>Hole</th><th>Birdies</th><th>Chip-ins</th><th>Aces</th></tr>';
+            for (let i = 1; i <= 9; i++) {
+                const h = holeStats[i];
+                html += `<tr><td>${i}</td><td>${h.birdies}</td><td>${h.chipins}</td><td>${h.aces}</td></tr>`;
+            }
+            html += '</table>';
+            summary.innerHTML = html;
+        });
 }
 
-const holeStats = {};
-for (let i = 1; i <= 9; i++) {
-holeStats[i] = { birdies: 0, chipins: 0, aces: 0 };
-}
-
-data.forEach(({ hole, score }) => {
-if (!holeStats[hole]) return;
-if (score === '1') holeStats[hole].aces++;
-else if (score === '2') holeStats[hole].birdies++;
-else if (score === '2*') holeStats[hole].chipins++;
-});
-
-let html = '<table><tr><th>Hole</th><th>Birdies</th><th>Chip-ins</th><th>Aces</th></tr>';
-for (let i = 1; i <= 9; i++) {
-const h = holeStats[i];
-html += `<tr><td>${i}</td><td>${h.birdies}</td><td>${h.chipins}</td><td>${h.aces}</td></tr>`;
-}
-html += '</table>';
-summary.innerHTML = html;
-});
-}
-
-renderLiveSummary();
+// Initial call of renderLiveSummary to populate it if week is already set on page load
+// This is now handled by loadAndListenRecap on DOMContentLoaded.
+// renderLiveSummary();
 
 
 document.getElementById('player').addEventListener('change', () => {
-const player = document.getElementById('player').value;
-const weekInput = document.getElementById('week');
-const week = weekInput.value || 1;
-if (["Commish", "Craig Sanger"].includes(player)) {
-adminPanel.classList.remove("hidden");
-adminPanel.innerHTML = `
-     <h3>Admin Tools</h3>
-     <label>Week to Finalize: <input type="number" id="finalWeek" min="1" value="${week}" /></label>
-     <button onclick="finalizeScores()">💰 Finalize Scores & Calculate Payouts</button>
-     <button onclick="clearWeek()">🗑 Clear Week</button>
-     <pre id="adminResults">Admin Results will appear here.</pre>
-   `;
-} else {
-adminPanel.classList.add("hidden");
-}
+    const player = document.getElementById('player').value;
+    const weekInput = document.getElementById('week');
+    const week = weekInput.value || 1; // Default to 1 if not set for admin tools preview
+
+    if (["Commish", "Craig Sanger"].includes(player)) {
+        adminPanel.classList.remove("hidden");
+        adminPanel.innerHTML = `
+            <h3>Admin Tools</h3>
+            <label>Week to Finalize: <input type="number" id="finalWeek" min="1" value="${week}" /></label>
+            <button onclick="finalizeScores()">💰 Finalize Scores & Calculate Payouts</button>
+            <button onclick="clearWeek()">🗑 Clear Week</button>
+            <pre id="adminResults">Admin Results will appear here.</pre>
+        `;
+        // Ensure admin panel's finalWeek input updates recap on its own change
+        document.getElementById('finalWeek').addEventListener('change', () => {
+            const adminWeek = parseInt(document.getElementById('finalWeek').value);
+            if (!isNaN(adminWeek) && adminWeek > 0) {
+                listenToRecap(adminWeek); // Make admin panel recap dynamic
+            }
+        });
+        // Initial load for admin panel's week
+        if (!isNaN(parseInt(week)) && parseInt(week) > 0) {
+            listenToRecap(parseInt(week));
+        }
+
+    } else {
+        adminPanel.classList.add("hidden");
+        // When admin panel is hidden, ensure the recap displayed is for the *main* week input
+        loadAndListenRecap();
+    }
 });
 
+
 async function finalizeScores() {
-const week = parseInt(document.getElementById('finalWeek').value);
-if (!week) return alert('Enter a week number.');
+    const week = parseInt(document.getElementById('finalWeek').value);
+    if (!week) return alert('Enter a week number.');
 
-const { data, error } = await client
-.from('Submissions')
-.select('*')
-.eq('week_number', week);
+    const { data, error } = await client
+        .from('Submissions')
+        .select('*')
+        .eq('week_number', week);
 
-if (error || !data || data.length === 0) {
-document.getElementById('adminResults').textContent = 'Error or no data for this week.';
-return;
-}
+    if (error || !data || data.length === 0) {
+        document.getElementById('adminResults').textContent = 'Error or no data for this week.';
+        return;
+    }
 
-let recap = '';
-const byHole = {};
-for (let i = 1; i <= 9; i++) byHole[i] = [];
-data.forEach(entry => byHole[entry.hole].push(entry));
+    let recap = '';
+    const byHole = {};
+    for (let i = 1; i <= 9; i++) byHole[i] = [];
+    data.forEach(entry => byHole[entry.hole].push(entry));
 
-const aceWinners = data.filter(d => d.score === '1');
+    const aceWinners = data.filter(d => d.score === '1');
 
-if (aceWinners.length > 0) {
-const names = aceWinners.map(a => a.player).join(', ');
-recap += `🎯 Ace Mode: $300 split among ${names}
-`;
-} else {
-let shares = {};
-let totalShares = 0;
-for (let h = 1; h <= 9; h++) {
-const scores = byHole[h];
-const birdies = scores.filter(s => s.score === '2');
-const chipins = scores.filter(s => s.score === '2*');
-const aces = scores.filter(s => s.score === '1');
-if (aces.length > 0) {
-const names = aces.map(p => p.player).join(', ');
-recap += `Hole ${h}: Ace by ${names}
-`;
-} else if (birdies.length === 1 && chipins.length === 0) {
-shares[birdies[0].player] = (shares[birdies[0].player] || 0) + 1;
-totalShares++;
-recap += `Hole ${h}: Skin to ${birdies[0].player}
-`;
-} else if (chipins.length === 1 && birdies.length === 0) {
-shares[chipins[0].player] = (shares[chipins[0].player] || 0) + 2;
-totalShares += 2;
-recap += `Hole ${h}: Skin (chip-in) to ${chipins[0].player}
-`;
-} else if (birdies.length > 0 || chipins.length > 0) {
-const bNames = birdies.map(b => b.player).join(', ');
-const cNames = chipins.map(c => c.player).join(', ');
-let names = [];
-if (bNames) names.push(`Birdies by ${bNames}`);
-if (cNames) names.push(`Chip-in Birdies by ${cNames}`);
-recap += `Hole ${h}: No skin - ${names.join(' and ')}
-`;
-} else {
-recap += `Hole ${h}: No action
-`;
-}
-}
-const valuePerShare = totalShares > 0 ? 300 / totalShares : 0;
-recap += `
-💸 Payouts:
-`;
-for (const player in shares) {
-const amount = (shares[player] * valuePerShare).toFixed(2);
-recap += `${player}: $${amount}
-`;
-}
-}
+    if (aceWinners.length > 0) {
+        const names = aceWinners.map(a => a.player).join(', ');
+        recap += `🎯 Ace Mode: $300 split among ${names}\n`;
+    } else {
+        let shares = {};
+        let totalShares = 0;
+        for (let h = 1; h <= 9; h++) {
+            const scores = byHole[h];
+            const birdies = scores.filter(s => s.score === '2');
+            const chipins = scores.filter(s => s.score === '2*');
+            const aces = scores.filter(s => s.score === '1');
+            if (aces.length > 0) {
+                const names = aces.map(p => p.player).join(', ');
+                recap += `Hole ${h}: Ace by ${names}\n`;
+            } else if (birdies.length === 1 && chipins.length === 0) {
+                shares[birdies[0].player] = (shares[birdies[0].player] || 0) + 1;
+                totalShares++;
+                recap += `Hole ${h}: Skin to ${birdies[0].player}\n`;
+            } else if (chipins.length === 1 && birdies.length === 0) {
+                shares[chipins[0].player] = (shares[chipins[0].player] || 0) + 2;
+                totalShares += 2;
+                recap += `Hole ${h}: Skin (chip-in) to ${chipins[0].player}\n`;
+            } else if (birdies.length > 0 || chipins.length > 0) {
+                const bNames = birdies.map(b => b.player).join(', ');
+                const cNames = chipins.map(c => c.player).join(', ');
+                let names = [];
+                if (bNames) names.push(`Birdies by ${bNames}`);
+                if (cNames) names.push(`Chip-in Birdies by ${cNames}`);
+                recap += `Hole ${h}: No skin - ${names.join(' and ')}\n`;
+            } else {
+                recap += `Hole ${h}: No action\n`;
+            }
+        }
+        const valuePerShare = totalShares > 0 ? 300 / totalShares : 0;
+        recap += `\n💸 Payouts:\n`;
+        for (const player in shares) {
+            const amount = (shares[player] * valuePerShare).toFixed(2);
+            recap += `${player}: $${amount}\n`;
+        }
+    }
 
-const ctp = data.filter(d => d.hole === 9 && d.ctp);
-if (ctp.length > 0) {
-const last = ctp.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-recap += `
-📍 CTP Winner: ${last.player} ($30)`;
-} else {
-recap += `
-📍 CTP Winner: Commish (default)`;
-}
+    const ctp = data.filter(d => d.hole === 9 && d.ctp);
+    if (ctp.length > 0) {
+        const last = ctp.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        recap += `\n📍 CTP Winner: ${last.player} ($30)`;
+    } else {
+        recap += `\n📍 CTP Winner: Commish (default)`;
+    }
 
-document.getElementById('adminResults').textContent = recap;
-await client.from('Recaps').upsert({ week_number: week, recap_text: recap });
+    document.getElementById('adminResults').textContent = recap;
+    // The upsert here will trigger the real-time listener for all connected clients on this week
+    await client.from('Recaps').upsert({ week_number: week, recap_text: recap });
 }
 
 async function clearWeek() {
-const week = parseInt(document.getElementById('finalWeek').value);
-if (!confirm(`Clear all submissions for week ${week}?`)) return;
-const { error } = await client
-.from('Submissions')
-.delete()
-.eq('week_number', week);
+    const week = parseInt(document.getElementById('finalWeek').value);
+    if (!confirm(`Clear all submissions for week ${week}? This action cannot be undone.`)) return;
+    const { error: submissionsError } = await client
+        .from('Submissions')
+        .delete()
+        .eq('week_number', week);
 
-if (error) {
-document.getElementById('adminResults').textContent = 'Error clearing week.';
-} else {
-document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
-}
+    const { error: recapsError } = await client
+        .from('Recaps')
+        .delete()
+        .eq('week_number', week);
+
+    if (submissionsError || recapsError) {
+        document.getElementById('adminResults').textContent = 'Error clearing week: ' + (submissionsError?.message || '') + (recapsError?.message || '');
+    } else {
+        document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
+        // Clear recap for this week for all users after clearing
+        document.getElementById('recap').textContent = '';
+    }
 }
 
 </script>
