@@ -95,7 +95,7 @@ button:hover {
     opacity: 0;
 }
 
-/* NEW: Styles for the embedded Google Sheet iframe */
+/* Styles for the embedded Google Sheet iframe */
 #googleSheetEmbed {
     width: 100%;
     height: 600px; /* You can adjust this height as needed */
@@ -167,7 +167,7 @@ button:hover {
 <div id="leaderboardSection" class="hidden" style="margin-top: 1rem;">
     <h3>Running Leaderboard</h3>
     <p>Data updated manually via Google Sheet. Please allow a few minutes for new updates to appear.</p>
-    <iframe id="googleSheetEmbed" src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTeKhlpBCxZlM8l61GdiVUw2uS_ouwBqgawUeihghWww2D-8CAVdPAvZVb34XqiXmmey-bDYrI43PCc/pubhtml?widget=true&amp;headers=false" width="100%" height="600" frameborder="0">Loading Leaderboard...</iframe>
+    <iframe id="googleSheetEmbed" src="https://docs.google.com/spreadsheets/d/e/2PACX-1vRIul1mRp3I1muiEpvLpeodW_3HWkElJ0bUSscf_8iDPrdJuTdQkdT5piGTdGCU3d_V7P7JN-hHYgsz/pubhtml?widget=true&amp;headers=false" width="100%" height="600" frameborder="0">Loading Leaderboard...</iframe>
     <button id="hideLeaderboard" type="button" style="margin-top: 0.5rem;">Hide Leaderboard</button>
 </div>
 
@@ -191,12 +191,10 @@ const startRoundButton = document.getElementById('startRound');
 const playerSelect = document.getElementById('player');
 const weekInput = document.getElementById('week');
 
-// NEW: Get references for leaderboard elements
 const toggleLeaderboardButton = document.getElementById('toggleLeaderboard');
 const leaderboardSection = document.getElementById('leaderboardSection');
 const hideLeaderboardButton = document.getElementById('hideLeaderboard');
 
-// --- Global variables to manage Supabase channel subscriptions ---
 let currentRecapChannel = null;
 let currentLiveScoresChannel = null;
 
@@ -213,26 +211,24 @@ weekInput.addEventListener('change', () => {
     loadAndListenRecap();
 });
 
-// NEW: Add event listeners for leaderboard toggle
 toggleLeaderboardButton.addEventListener('click', () => {
     leaderboardSection.classList.remove('hidden');
-    form.classList.add('hidden'); // Hide the entire form section
-    scorecard.classList.add('hidden'); // Hide personal scorecard
-    summary.classList.add('hidden');    // Hide live summary
-    adminPanel.classList.add('hidden'); // Hide admin tools if visible
-    toggleLeaderboardButton.classList.add('hidden'); // Hide itself
+    form.classList.add('hidden');
+    scorecard.classList.add('hidden');
+    summary.classList.add('hidden');
+    adminPanel.classList.add('hidden');
+    toggleLeaderboardButton.classList.add('hidden');
 });
 
 hideLeaderboardButton.addEventListener('click', () => {
     leaderboardSection.classList.add('hidden');
-    form.classList.remove('hidden'); // Show the entire form section
-    scorecard.classList.remove('hidden'); // Show personal scorecard
-    summary.classList.remove('hidden');    // Show live summary
-    // Only show admin panel if an admin player is selected
+    form.classList.remove('hidden');
+    scorecard.classList.remove('hidden');
+    summary.classList.remove('hidden');
     if (["Commish", "Craig Sanger"].includes(playerSelect.value)) {
         adminPanel.classList.remove('hidden');
     }
-    toggleLeaderboardButton.classList.remove('hidden'); // Show itself
+    toggleLeaderboardButton.classList.remove('hidden');
 });
 
 
@@ -290,7 +286,7 @@ async function handleHoleSubmit() {
         ? document.getElementById('otherPlayer').value.trim()
         : playerSelect.value;
     const week = parseInt(weekInput.value);
-    const scoreInput = holeSection.querySelector('input[name="score"]:checked');
+    const scoreInput = holeSection.querySelector('input[name="score']:checked');
     if (!player || !week || !scoreInput) return alert('Fill in all fields');
 
     let score = scoreInput.value;
@@ -602,7 +598,6 @@ async function finalizeScores() {
         }
 
         document.getElementById('adminResults').textContent = recap;
-        await client.from('recaps').upsert({ week_number: week, recap_text: recap });
     } catch (err) {
         document.getElementById('adminResults').textContent = 'Error finalizing: ' + err.message;
         console.error('Finalization error:', err);
