@@ -5,19 +5,66 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Palacio Skins Scorecard</title>
 <style>
-body { font-family: Arial, sans-serif; margin: 1rem; max-width: 700px; }
+/* NEW: Google Font Import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+body {
+    /* UPDATED: Modern font, subtle background color, darker text */
+    font-family: 'Inter', Arial, sans-serif;
+    margin: 1rem;
+    max-width: 700px;
+    background-color: #f8fbfd; /* Very subtle light blue-grey */
+    color: #333; /* Darker default text for better contrast */
+}
+
+/* NEW: Heading colors for a touch of accent */
+h1, h3 {
+    color: #2c3e50; /* A darker, slightly desaturated blue-grey */
+}
+
 label, select, input { display: block; margin: 0.5rem 0; }
 .score-options input[type="radio"] { margin-right: 0.3rem; }
 .score-options label { margin: 0.3rem 0; padding: 0.3rem; border: 1px solid #ccc; border-radius: 4px; background: #f3f3f3; cursor: pointer; }
 .score-options input[type="radio"]:checked + label {
-background-color: #cce5ff;
-border-color: #66afe9;
+    /* Adjusted existing light blue to fit new palette */
+    background-color: #d6eaff; /* Slightly brighter light blue */
+    border-color: #007bff; /* Keep original strong blue for checked state */
 }
 .hidden { display: none; }
 table { width: 100%; margin-top: 1rem; border-collapse: collapse; }
 th, td { border: 1px solid #ccc; padding: 0.4rem; text-align: center; }
+
+/* NEW: Table header background for a bit of color */
+th {
+    background-color: #e9f5f9; /* Very light blue background for table headers */
+    color: #2c3e50; /* Match heading color */
+}
+
 .admin { background: #f9f9f9; padding: 1rem; margin-top: 1rem; border: 1px solid #ccc; }
 #recap:empty { display: none; } /* This rule is good, hides if no text */
+
+/* NEW: Style for highlighting current hole */
+.current-hole {
+    background-color: #e0f2f7; /* Light blue background */
+    font-weight: bold;
+    border-color: #007bff; /* Stronger border */
+}
+
+/* NEW: Modern button styles */
+button {
+    background-color: #3498db; /* A standard soft blue */
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.2s ease; /* Smooth transition on hover */
+}
+
+button:hover {
+    background-color: #2980b9; /* Darker blue on hover */
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -90,27 +137,37 @@ const scorecard = document.getElementById('scorecard');
 const summary = document.getElementById('summary');
 const adminPanel = document.getElementById('adminTools');
 const startRoundButton = document.getElementById('startRound');
+const playerSelect = document.getElementById('player'); // Get player select once
+const weekInput = document.getElementById('week'); // Get week input once
 
 // --- Global variables to manage Supabase channel subscriptions ---
 let currentRecapChannel = null;
 let currentLiveScoresChannel = null;
 
-document.getElementById('player').addEventListener('change', (e) => {
-    document.getElementById('otherPlayer').classList.toggle('hidden', e.target.value !== 'Other');
-    // Call loadAndListenRecap when player changes, as week might already be set
+playerSelect.addEventListener('change', (e) => {
+    const otherPlayerInput = document.getElementById('otherPlayer');
+    otherPlayerInput.classList.toggle('hidden', e.target.value !== 'Other');
+    // NEW: Auto-focus "Other" input
+    if (e.target.value === 'Other') {
+        otherPlayerInput.focus();
+    }
     loadAndListenRecap();
 });
 
-// --- Listen for changes on the week input field ---
-document.getElementById('week').addEventListener('change', loadAndListenRecap);
+weekInput.addEventListener('change', loadAndListenRecap);
 
 
 function renderScorecard() {
     let html = '<h3>Your Scorecard</h3>';
     html += '<table><tr><th>Hole</th>';
-    for (let i = 1; i <= maxHoles; i++) html += `<th>${i}</th>`;
+    // Add classes for highlighting
+    for (let i = 1; i <= maxHoles; i++) {
+        html += `<th class="${i === currentHole ? 'current-hole' : ''}">${i}</th>`;
+    }
     html += '</tr><tr><td>Score</td>';
-    for (let i = 1; i <= maxHoles; i++) html += `<td>${scores[i] || '-'}</td>`;
+    for (let i = 1; i <= maxHoles; i++) {
+        html += `<td class="${i === currentHole ? 'current-hole' : ''}">${scores[i] || '-'}</td>`;
+    }
     html += '</tr></table>';
     scorecard.innerHTML = html;
 }
@@ -147,10 +204,10 @@ function renderHoleForm() {
 }
 
 async function handleHoleSubmit() {
-    const player = document.getElementById('player').value === 'Other'
+    const player = playerSelect.value === 'Other'
         ? document.getElementById('otherPlayer').value.trim()
-        : document.getElementById('player').value;
-    const week = parseInt(document.getElementById('week').value);
+        : playerSelect.value;
+    const week = parseInt(weekInput.value);
     const scoreInput = holeSection.querySelector('input[name="score"]:checked');
     if (!player || !week || !scoreInput) return alert('Fill in all fields');
 
@@ -162,7 +219,7 @@ async function handleHoleSubmit() {
     const submission = { player, week_number: week, hole: currentHole, score, ctp };
 
     try {
-        const { error } = await client.from('Submissions').insert([submission]); // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
+        const { error } = await client.from('Submissions').insert([submission]);
         if (error) throw error;
     } catch (err) {
         alert('Error submitting: ' + err.message);
@@ -184,7 +241,7 @@ function listenToRecap(weekNumber) {
     }
 
     client
-        .from('recaps') // Corrected casing
+        .from('recaps')
         .select('recap_text')
         .eq('week_number', weekNumber)
         .single()
@@ -201,7 +258,7 @@ function listenToRecap(weekNumber) {
         .on('postgres_changes', {
             event: '*',
             schema: 'public',
-            table: 'recaps', // Corrected casing
+            table: 'recaps',
             filter: `week_number=eq.${weekNumber}`
         }, payload => {
             document.getElementById('recap').textContent = payload.new.recap_text;
@@ -219,14 +276,13 @@ function listenToLiveScores(weekNumber) {
     currentLiveScoresChannel = client.channel(channelName)
         .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` }, // Assumes 'Submissions' is correct casing. If not, change to 'submissions'
+            { event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` },
             () => renderLiveSummary()
         )
         .subscribe();
 }
 
 function loadAndListenRecap() {
-    const weekInput = document.getElementById('week');
     const week = parseInt(weekInput.value);
 
     if (!isNaN(week) && week > 0) {
@@ -234,19 +290,17 @@ function loadAndListenRecap() {
         listenToLiveScores(week);
         renderLiveSummary();
 
-        // --- NEW LOGIC: Update admin 'finalWeek' input if admin is selected and panel is visible ---
-        const playerSelect = document.getElementById('player');
+        // Update admin 'finalWeek' input if admin is selected and panel is visible
         if (["Commish", "Craig Sanger"].includes(playerSelect.value)) {
             const finalWeekInput = document.getElementById('finalWeek');
-            if (finalWeekInput) { // Ensure the admin panel is rendered and the input exists
-                finalWeekInput.value = week; // Update the admin's week input to match the main selected week
+            if (finalWeekInput) {
+                finalWeekInput.value = week;
             }
         }
-        // --- END NEW LOGIC ---
 
     } else {
         document.getElementById('recap').textContent = '';
-        summary.innerHTML = '';
+        summary.innerHTML = ''; // Changed: Now simply clears the summary if no week is selected
         if (currentRecapChannel) {
             client.removeChannel(currentRecapChannel);
             currentRecapChannel = null;
@@ -265,10 +319,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 startRoundButton.addEventListener('click', () => {
-    const player = document.getElementById('player').value;
-    const week = document.getElementById('week').value;
+    const player = playerSelect.value;
+    const week = weekInput.value;
     if (!player || !week) return alert('Please select a player and enter a week number first.');
+
     startRoundButton.classList.add('hidden');
+    // NEW: Disable player and week inputs
+    playerSelect.disabled = true;
+    weekInput.disabled = true;
+
     currentHole = 1;
     for (let i = 1; i <= maxHoles; i++) delete scores[i];
     renderScorecard();
@@ -276,9 +335,9 @@ startRoundButton.addEventListener('click', () => {
 });
 
 function renderLiveSummary() {
-    const week = parseInt(document.getElementById('week').value);
+    const week = parseInt(weekInput.value);
     if (!week) {
-        summary.innerHTML = '<p>Please enter a week number to see live summary.</p>';
+        summary.innerHTML = ''; // Changed: Now simply clears the summary if no week is selected
         return;
     }
     client
@@ -314,9 +373,8 @@ function renderLiveSummary() {
 }
 
 document.getElementById('player').addEventListener('change', () => {
-    const player = document.getElementById('player').value;
-    const weekInput = document.getElementById('week');
-    const week = weekInput.value || 1; // Default to 1 if not set for admin tools preview
+    const player = playerSelect.value;
+    const week = weekInput.value || 1;
 
     if (["Commish", "Craig Sanger"].includes(player)) {
         adminPanel.classList.remove("hidden");
@@ -415,7 +473,7 @@ async function finalizeScores() {
     }
 
     document.getElementById('adminResults').textContent = recap;
-    await client.from('recaps').upsert({ week_number: week, recap_text: recap }); // Corrected casing
+    await client.from('recaps').upsert({ week_number: week, recap_text: recap });
 }
 
 async function clearWeek() {
@@ -427,7 +485,7 @@ async function clearWeek() {
         .eq('week_number', week);
 
     const { error: recapsError } = await client
-        .from('recaps') // Corrected casing
+        .from('recaps')
         .delete()
         .eq('week_number', week);
 
@@ -435,7 +493,7 @@ async function clearWeek() {
         document.getElementById('adminResults').textContent = 'Error clearing week: ' + (submissionsError?.message || '') + (recapsError?.message || '');
     } else {
         document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
-        document.getElementById('recap').textContent = ''; // Clear recap for this week for all users after clearing
+        document.getElementById('recap').textContent = '';
     }
 }
 
