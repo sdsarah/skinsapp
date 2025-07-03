@@ -95,21 +95,11 @@ button:hover {
     opacity: 0;
 }
 
-/* Logo Image Styles */
-#logo {
-    display: block; /* Makes it a block-level element */
-    margin: 1rem auto; /* Centers it horizontally with some margin */
-    max-width: 180px; /* Adjust max width as needed */
-    height: auto; /* Maintain aspect ratio */
-}
-
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <h1>Palacio Skins Scorecard</h1>
-
-<img id="logo" src="image_1aaa9b.png" alt="Palacio Del Mar Golf & Tennis Club Logo">
 
 <div id="scorecard"></div>
 
@@ -161,6 +151,7 @@ button:hover {
 <div id="summary"></div>
 <div id="adminTools" class="admin hidden"></div>
 <pre id="recap" style="margin-top:1rem; white-space:pre-wrap; border:1px dashed #999; padding:1rem;"></pre>
+
 
 <div id="celebrationMessage" class="hidden"></div>
 
@@ -239,7 +230,7 @@ function renderHoleForm() {
     holeSection.appendChild(div);
 
     const chipInOptionSpan = document.getElementById('chipInOption');
-    const birdieRadio = div.querySelector('input[value="2"]');
+    const birdieRadio = div.querySelector('input[value="2']");
 
     birdieRadio.addEventListener('change', () => chipInOptionSpan.classList.remove('hidden'));
     div.querySelectorAll('input[name="score"]').forEach(input => {
@@ -378,7 +369,7 @@ function loadAndListenRecap() {
 document.addEventListener('DOMContentLoaded', () => {
     const today = new Date();
 
-    // NEW: Only apply default week logic if the current year is 2025
+    // Only apply default week logic if the current year is 2025
     if (today.getFullYear() === 2025) {
         const currentDay = today.getDay(); // 0 (Sunday) to 6 (Saturday)
         const currentMonday = new Date(today); // Create a copy
@@ -388,19 +379,19 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMonday.setDate(today.getDate() - daysToSubtract);
         currentMonday.setHours(0, 0, 0, 0); // Normalize to start of day
 
-        const referenceDate = new Date('2025-06-30T00:00:00'); // Week 8 reference (June 30, 2025 was a Monday)
+        const referenceDate = new Date('2025-06-30T00:00:00'); // Week 9 reference (June 30, 2025 was a Monday)
         referenceDate.setHours(0,0,0,0); // Normalize reference date to start of day
 
         const msPerWeek = 1000 * 60 * 60 * 24 * 7;
         const diffMs = currentMonday.getTime() - referenceDate.getTime();
         const diffWeeks = Math.round(diffMs / msPerWeek); // Calculate difference in weeks
 
-        const defaultCalculatedWeek = 8 + diffWeeks; // Add to reference week number
+        const defaultCalculatedWeek = 9 + diffWeeks; // Adjusted to Week 9
         weekInput.value = defaultCalculatedWeek; // Set the calculated week as the default
     }
 
-    loadAndListenRecap(); // Now load data for the defaulted week (or empty if no default)
-    renderLiveSummary(); // Ensure summary loads for the defaulted week (or empty if no default)
+    loadAndListenRecap();
+    renderLiveSummary();
 });
 
 
