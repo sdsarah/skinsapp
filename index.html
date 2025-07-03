@@ -224,3 +224,355 @@ function renderHoleForm() {
         </div>
         <div id="ctpContainer" class="${currentHole === 9 ? '' : 'hidden'}">
             <label><input type="checkbox" id="ctp"> Closest to the Pin</label>
+        </div>
+        <button type="button" onclick="handleHoleSubmit()">Submit Hole</button>
+    `;
+    holeSection.appendChild(div);
+
+    const chipInOptionSpan = document.getElementById('chipInOption');
+    const birdieRadio = div.querySelector('input[value="2']");
+
+    birdieRadio.addEventListener('change', () => chipInOptionSpan.classList.remove('hidden'));
+    div.querySelectorAll('input[name="score"]').forEach(input => {
+        if (input.value !== '2') input.addEventListener('change', () => chipInOptionSpan.classList.add('hidden'));
+    });
+}
+
+async function handleHoleSubmit() {
+    const player = playerSelect.value === 'Other'
+        ? document.getElementById('otherPlayer').value.trim()
+        : playerSelect.value;
+    const week = parseInt(weekInput.value);
+    const scoreInput = holeSection.querySelector('input[name="score"]:checked');
+    if (!player || !week || !scoreInput) return alert('Fill in all fields');
+
+    let score = scoreInput.value;
+    const chipIn = document.getElementById('chipIn')?.checked;
+    if (score === '2' && chipIn) score = '2*';
+    const ctp = document.getElementById('ctp')?.checked || false;
+
+    const submission = { player, week_number: week, hole: currentHole, score, ctp };
+
+    try {
+        const { error } = await client.from('Submissions').insert([submission]);
+        if (error) throw error;
+    } catch (err) {
+        alert('Error submitting: ' + err.message);
+        return;
+    }
+
+    scores[currentHole] = score;
+    renderScorecard();
+    currentHole++;
+    renderHoleForm();
+
+    renderLiveSummary();
+
+    // Celebration Message Logic
+    const celebrationMessageDiv = document.getElementById('celebrationMessage');
+    let messageText = '';
+
+    if (score === '1') {
+        messageText = '🎉 ACE! Hole-in-One! 🎉';
+    } else if (score === '2') {
+        messageText = '🐦 Birdie!';
+    } else if (score === '2*') {
+        messageText = '✨ Chip-in Birdie!';
+    }
+
+    if (messageText) {
+        celebrationMessageDiv.textContent = messageText;
+        celebrationMessageDiv.classList.remove('hidden');
+        setTimeout(() => {
+            celebrationMessageDiv.classList.add('hidden');
+        }, 2500); // Hide after 2.5 seconds
+    }
+}
+
+function listenToRecap(weekNumber) {
+    if (currentRecapChannel) {
+        client.removeChannel(currentRecapChannel);
+        currentRecapChannel = null;
+    }
+
+    client
+        .from('recaps')
+        .select('recap_text')
+        .eq('week_number', weekNumber)
+        .single()
+        .then(({ data }) => {
+            if (data && data.recap_text) {
+                document.getElementById('recap').textContent = data.recap_text;
+            } else {
+                document.getElementById('recap').textContent = '';
+            }
+        });
+
+    const channelName = `recap_week_${weekNumber}`;
+    currentRecapChannel = client.channel(channelName)
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'recaps',
+            filter: `week_number=eq.${weekNumber}`
+        }, payload => {
+            document.getElementById('recap').textContent = payload.new.recap_text;
+        })
+        .subscribe();
+}
+
+function listenToLiveScores(weekNumber) {
+    if (currentLiveScoresChannel) {
+        client.removeChannel(currentLiveScoresChannel);
+        currentLiveScoresChannel = null;
+    }
+
+    const channelName = `submissions_week_${weekNumber}`;
+    currentLiveScoresChannel = client.channel(channelName)
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'Submissions', filter: `week_number=eq.${weekNumber}` },
+            () => renderLiveSummary()
+        )
+        .subscribe();
+}
+
+function loadAndListenRecap() {
+    const week = parseInt(weekInput.value);
+
+    if (!isNaN(week) && week > 0) {
+        listenToRecap(week);
+        listenToLiveScores(week);
+        renderLiveSummary();
+
+        if (["Commish", "Craig Sanger"].includes(playerSelect.value)) {
+            const finalWeekInput = document.getElementById('finalWeek');
+            if (finalWeekInput) {
+                finalWeekInput.value = week;
+            }
+        }
+
+    } else {
+        document.getElementById('recap').textContent = '';
+        summary.innerHTML = '';
+        if (currentRecapChannel) {
+            client.removeChannel(currentRecapChannel);
+            currentRecapChannel = null;
+        }
+        if (currentLiveScoresChannel) {
+            client.removeChannel(currentLiveScoresChannel);
+            currentLiveScoresChannel = null;
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date();
+
+    // Only apply default week logic if the current year is 2025
+    if (today.getFullYear() === 2025) {
+        const currentDay = today.getDay(); // 0 (Sunday) to 6 (Saturday)
+        const currentMonday = new Date(today); // Create a copy
+
+        // Adjust to the current week's Monday (the start of your defined week)
+        const daysToSubtract = currentDay === 0 ? 6 : currentDay - 1; // If Sunday (0), go back 6 days; otherwise, go back (day - 1) days
+        currentMonday.setDate(today.getDate() - daysToSubtract);
+        currentMonday.setHours(0, 0, 0, 0); // Normalize to start of day
+
+        const referenceDate = new Date('2025-06-30T00:00:00'); // Week 9 reference (June 30, 2025 was a Monday)
+        referenceDate.setHours(0,0,0,0); // Normalize reference date to start of day
+
+        const msPerWeek = 1000 * 60 * 60 * 24 * 7;
+        const diffMs = currentMonday.getTime() - referenceDate.getTime();
+        const diffWeeks = Math.round(diffMs / msPerWeek); // Calculate difference in weeks
+
+        const defaultCalculatedWeek = 9 + diffWeeks; // Adjusted to Week 9
+        weekInput.value = defaultCalculatedWeek; // Set the calculated week as the default
+    }
+
+    loadAndListenRecap();
+    renderLiveSummary();
+});
+
+
+startRoundButton.addEventListener('click', () => {
+    const player = playerSelect.value;
+    const week = weekInput.value;
+    if (!player || !week) return alert('Please select a player and enter a week number first.');
+
+    startRoundButton.classList.add('hidden');
+    playerSelect.disabled = true;
+    weekInput.disabled = true;
+
+    currentHole = 1;
+    for (let i = 1; i <= maxHoles; i++) delete scores[i];
+    renderScorecard();
+    renderHoleForm();
+});
+
+function renderLiveSummary() {
+    const week = parseInt(weekInput.value);
+    if (!week) {
+        summary.innerHTML = '';
+        return;
+    }
+    client
+        .from('Submissions')
+        .select('*')
+        .eq('week_number', week)
+        .then(({ data, error }) => {
+            if (error || !data) {
+                summary.innerHTML = '<p>Error loading summary</p>';
+                return;
+            }
+
+            const holeStats = {};
+            for (let i = 1; i <= 9; i++) {
+                holeStats[i] = { birdies: 0, chipins: 0, aces: 0 };
+            }
+
+            data.forEach(({ hole, score }) => {
+                if (!holeStats[hole]) return;
+                if (score === '1') holeStats[hole].aces++;
+                else if (score === '2') holeStats[hole].birdies++;
+                else if (score === '2*') holeStats[hole].chipins++;
+            });
+
+            let html = '<table><tr><th>Hole</th><th>Birdies</th><th>Chip-ins</th><th>Aces</th></tr>';
+            for (let i = 1; i <= 9; i++) {
+                const h = holeStats[i];
+                html += `<tr><td>${i}</td><td>${h.birdies}</td><td>${h.chipins}</td><td>${h.aces}</td></tr>`;
+            }
+            html += '</table>';
+            summary.innerHTML = html;
+        });
+}
+
+document.getElementById('player').addEventListener('change', () => {
+    const player = playerSelect.value;
+    const week = weekInput.value || 1;
+
+    if (["Commish", "Craig Sanger"].includes(player)) {
+        adminPanel.classList.remove("hidden");
+        adminPanel.innerHTML = `
+            <h3>Admin Tools</h3>
+            <label>Week to Finalize: <input type="number" id="finalWeek" min="1" value="${week}" /></label>
+            <button onclick="finalizeScores()">💰 Finalize Scores & Calculate Payouts</button>
+            <button onclick="clearWeek()">🗑 Clear Week</button>
+            <pre id="adminResults">Admin Results will appear here.</pre>
+        `;
+        document.getElementById('finalWeek').addEventListener('change', () => {
+            const adminWeek = parseInt(document.getElementById('finalWeek').value);
+            if (!isNaN(adminWeek) && adminWeek > 0) {
+                listenToRecap(adminWeek);
+            }
+        });
+        if (!isNaN(parseInt(week)) && parseInt(week) > 0) {
+            listenToRecap(parseInt(week));
+        }
+
+    } else {
+        adminPanel.classList.add("hidden");
+        loadAndListenRecap();
+    }
+});
+
+
+async function finalizeScores() {
+    const week = parseInt(document.getElementById('finalWeek').value);
+    if (!week) return alert('Enter a week number.');
+
+    const { data, error } = await client
+        .from('Submissions')
+        .select('*')
+        .eq('week_number', week);
+
+    if (error || !data || data.length === 0) {
+        document.getElementById('adminResults').textContent = 'Error or no data for this week.';
+        return;
+    }
+
+    let recap = '';
+    const byHole = {};
+    for (let i = 1; i <= 9; i++) byHole[i] = [];
+    data.forEach(entry => byHole[entry.hole].push(entry));
+
+    const aceWinners = data.filter(d => d.score === '1');
+
+    if (aceWinners.length > 0) {
+        const names = aceWinners.map(a => a.player).join(', ');
+        recap += `🎯 Ace Mode: $300 split among ${names}\n`;
+    } else {
+        let shares = {};
+        let totalShares = 0;
+        for (let h = 1; h <= 9; h++) {
+            const scores = byHole[h];
+            const birdies = scores.filter(s => s.score === '2');
+            const chipins = scores.filter(s => s.score === '2*');
+            const aces = scores.filter(s => s.score === '1');
+            if (aces.length > 0) {
+                const names = aces.map(p => p.player).join(', ');
+                recap += `Hole ${h}: Ace by ${names}\n`;
+            } else if (birdies.length === 1 && chipins.length === 0) {
+                shares[birdies[0].player] = (shares[birdies[0].player] || 0) + 1;
+                totalShares++;
+                recap += `Hole ${h}: Skin to ${birdies[0].player}\n`;
+            } else if (chipins.length === 1 && birdies.length === 0) {
+                shares[chipins[0].player] = (shares[chipins[0].player] || 0) + 2;
+                totalShares += 2;
+                recap += `Hole ${h}: Skin (chip-in) to ${chipins[0].player}\n`;
+            } else if (birdies.length > 0 || chipins.length > 0) {
+                const bNames = birdies.map(b => b.player).join(', ');
+                const cNames = chipins.map(c => c.player).join(', ');
+                let names = [];
+                if (bNames) names.push(`Birdies by ${bNames}`);
+                if (cNames) names.push(`Chip-in Birdies by ${cNames}`);
+                recap += `Hole ${h}: No skin - ${names.join(' and ')}\n`;
+            } else {
+                recap += `Hole ${h}: No action\n`;
+            }
+        }
+        const valuePerShare = totalShares > 0 ? 300 / totalShares : 0;
+        recap += `\n💸 Payouts:\n`;
+        for (const player in shares) {
+            const amount = (shares[player] * valuePerShare).toFixed(2);
+            recap += `${player}: $${amount}\n`;
+        }
+    }
+
+    const ctp = data.filter(d => d.hole === 9 && d.ctp);
+    if (ctp.length > 0) {
+        const last = ctp.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        recap += `\n📍 CTP Winner: ${last.player} ($30)`;
+    } else {
+        recap += `\n📍 CTP Winner: Commish (default)`;
+    }
+
+    document.getElementById('adminResults').textContent = recap;
+    await client.from('recaps').upsert({ week_number: week, recap_text: recap });
+}
+
+async function clearWeek() {
+    const week = parseInt(document.getElementById('finalWeek').value);
+    if (!confirm(`Clear all submissions for week ${week}? This action cannot be undone.`)) return;
+    const { error: submissionsError } = await client
+        .from('Submissions')
+        .delete()
+        .eq('week_number', week);
+
+    const { error: recapsError } = await client
+        .from('recaps')
+        .delete()
+        .eq('week_number', week);
+
+    if (submissionsError || recapsError) {
+        document.getElementById('adminResults').textContent = 'Error clearing week: ' + (submissionsError?.message || '') + (recapsError?.message || '');
+    } else {
+        document.getElementById('adminResults').textContent = `Week ${week} cleared.`;
+        document.getElementById('recap').textContent = '';
+    }
+}
+
+</script>
+</body>
+</html>
